@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Fingerprint Attendance</title>
+  <style>
+    body {
+      font-family: "Poppins", sans-serif;
+      background: linear-gradient(135deg, #4b6cb7, #182848);
+      color: #fff;
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .container {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(15px);
+      border-radius: 20px;
+      padding: 30px;
+      width: 90%;
+      max-width: 420px;
+      text-align: center;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+    }
+    h1 {
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    p {
+      font-size: 14px;
+      color: #ddd;
+    }
+    input {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 8px;
+      border: none;
+      outline: none;
+      font-size: 15px;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      margin: 8px 0;
+      background: linear-gradient(90deg, #0072ff, #00c6ff);
+      border: none;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 500;
+      border-radius: 30px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    button:hover {
+      transform: scale(1.03);
+      background: linear-gradient(90deg, #00c6ff, #0072ff);
+    }
+    .hidden {
+      display: none;
+    }
+    #status {
+      margin-top: 15px;
+      font-size: 14px;
+      color: #aee1ff;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    th, td {
+      padding: 8px;
+      text-align: left;
+      border-bottom: 1px solid rgba(255,255,255,0.2);
+    }
+    th {
+      background: rgba(255,255,255,0.15);
+    }
+  </style>
+</head>
+<body>
+  <div class="container" id="loginContainer">
+    <h1>Student Login</h1>
+    <p>Enter your Student ID to continue</p>
+    <input type="text" id="studentIdInput" placeholder="e.g. STU101">
+    <button id="loginBtn">Login</button>
+    <div id="loginStatus"></div>
+  </div>
+
+  <div class="container hidden" id="attendanceContainer">
+    <h1>Welcome, <span id="studentName"></span></h1>
+    <p>Use your fingerprint to mark attendance</p>
+    <button id="registerBtn">Register Fingerprint</button>
+    <button id="markBtn">Mark Attendance</button>
+    <div id="status">Ready</div>
+    <h3 style="margin-top:20px;">Attendance History</h3>
+    <table id="attendanceTable">
+      <thead><tr><th>Date</th><th>Time</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <button id="logoutBtn" style="background:#f44336;">Logout</button>
+  </div>
+
+  <script>
+    const loginContainer = document.getElementById("loginContainer");
+    const attendanceContainer = document.getElementById("attendanceContainer");
+    const loginBtn = document.getElementById("loginBtn");
+    const logoutBtn = document.getElementById("logoutBtn");
+    const studentIdInput = document.getElementById("studentIdInput");
+    const studentName = document.getElementById("studentName");
+    const registerBtn = document.getElementById("registerBtn");
+    const markBtn = document.getElementById("markBtn");
+    const statusEl = document.getElementById("status");
+    const attendanceTable = document.querySelector("#attendanceTable tbody");
+
+    let currentStudent = null;
+
+    // Check WebAuthn
+    if (!window.PublicKeyCredential) {
+      alert("❌ WebAuthn not supported in this browser. Please use Chrome or Edge on mobile.");
+      registerBtn.disabled = true;
+      markBtn.disabled = true;
+    }
+
+    function showLogin() {
+      loginContainer.classList.remove("hidden");
+      attendanceContainer.classList.add("hidden");
+    }
+
+    function showAttendance() {
+      loginContainer.classList.add("hidden");
+      attendanceContainer.classList.remove("hidden");
+    }
+
+    function updateStatus(msg) {
+      statusEl.textContent = msg;
+    }
+
+    // Load attendance history
+    function loadAttendanceHistory() {
+      const records = JSON.parse(localStorage.getItem(currentStudent + "_attendance") || "[]");
+      attendanceTable.innerHTML = "";
+      records.forEach(r => {
+        const row = `<tr><td>${r.date}</td><td>${r.time}</td></tr>`;
+        attendanceTable.insertAdjacentHTML("beforeend", row);
+      });
+    }
+
+    // Save attendance
+    function saveAttendance() {
+      const now = new Date();
+      const record = { date: now.toLocaleDateString(), time: now.toLocaleTimeString() };
+      const records = JSON.parse(localStorage.getItem(currentStudent + "_attendance") || "[]");
+      records.push(record);
+      localStorage.setItem(currentStudent + "_attendance", JSON.stringify(records));
+      loadAttendanceHistory();
+    }
+
+    // Handle login
+    loginBtn.onclick = () => {
+      const id = studentIdInput.value.trim();
+      if (!id) return alert("Enter Student ID");
+      currentStudent = id;
+      studentName.textContent = id;
+      showAttendance();
+      loadAttendanceHistory();
+    };
+
+    // Handle logout
+    logoutBtn.onclick = () => {
+      currentStudent = null;
+      studentIdInput.value = "";
+      showLogin();
+    };
+
+    // Register fingerprint
+    registerBtn.onclick = async () => {
+      try {
+        updateStatus("🌀 Registering fingerprint...");
+        const publicKey = {
+          challenge: new Uint8Array(32),
+          rp: { name: "College Attendance System" },
+          user: {
+            id: new Uint8Array(16),
+            name: currentStudent,
+            displayName: currentStudent
+          },
+          pubKeyCredParams: [{ type: "public-key", alg: -7 }],
+          authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" },
+          timeout: 60000,
+          attestation: "none"
+        };
+        const credential = await navigator.credentials.create({ publicKey });
+        const rawId = btoa(String.fromCharCode(...new Uint8Array(credential.rawId)));
+        localStorage.setItem(currentStudent + "_fingerprint", rawId);
+        updateStatus("✅ Fingerprint registered for " + currentStudent);
+      } catch (err) {
+        updateStatus("❌ Registration failed: " + err.message);
+      }
+    };
+
+    // Mark attendance
+    markBtn.onclick = async () => {
+      try {
+        const storedId = localStorage.getItem(currentStudent + "_fingerprint");
+        if (!storedId) {
+          updateStatus("⚠️ Register fingerprint first!");
+          return;
+        }
+        updateStatus("🔒 Verifying fingerprint...");
+        const publicKey = {
+          challenge: new Uint8Array(32),
+          allowCredentials: [{
+            id: Uint8Array.from(atob(storedId), c => c.charCodeAt(0)),
+            type: "public-key"
+          }],
+          timeout: 60000,
+          userVerification: "required"
+        };
+        await navigator.credentials.get({ publicKey });
+        updateStatus("✅ Attendance marked!");
+        saveAttendance();
+      } catch (err) {
+        updateStatus("❌ Verification failed: " + err.message);
+      }
+    };
+
+    // Init
+    showLogin();
+  </script>
+</body>
+</html>
+
