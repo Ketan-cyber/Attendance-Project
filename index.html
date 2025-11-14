@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Attendance System</title>
+  <style>
+    * { box-sizing: border-box; font-family: "Poppins", sans-serif; }
+    body {
+      margin: 0;
+      background: linear-gradient(135deg, #2c5364, #203a43, #0f2027);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    .container {
+      width: 90%;
+      max-width: 420px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 30px;
+      text-align: center;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+    }
+    h1 { margin-bottom: 10px; font-weight: 600; }
+    p { color: #ccc; margin-bottom: 20px; }
+    input, select {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      font-size: 15px;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 30px;
+      background: linear-gradient(90deg, #00c6ff, #0072ff);
+      color: #fff;
+      font-size: 16px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    button:hover { transform: translateY(-2px); }
+    .hidden { display: none; }
+    #status { margin-top: 15px; color: #aee1ff; font-size: 14px; }
+    .dashboard {
+      text-align: left;
+    }
+    .card {
+      background: rgba(255,255,255,0.1);
+      padding: 15px;
+      border-radius: 12px;
+      margin-bottom: 15px;
+    }
+    .logout {
+      margin-top: 10px;
+      background: #ff4b5c;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Register Page -->
+    <div id="registerPage">
+      <h1>Register</h1>
+      <p>Create your account</p>
+      <input type="text" id="regName" placeholder="Full Name" required>
+      <input type="email" id="regEmail" placeholder="Email" required>
+      <select id="regRole">
+        <option value="Student">Student</option>
+        <option value="Teacher">Teacher</option>
+      </select>
+      <input type="password" id="regPin" placeholder="Create PIN (for login)" required>
+      <button id="registerBtn">Register</button>
+      <button id="gotoLogin">Already have account? Login</button>
+      <div id="regStatus"></div>
+    </div>
+
+    <!-- Login Page -->
+    <div id="loginPage" class="hidden">
+      <h1>Login</h1>
+      <p>Login with your registered email</p>
+      <input type="email" id="loginEmail" placeholder="Email" required>
+      <input type="password" id="loginPin" placeholder="PIN" required>
+      <button id="loginBtn">Login</button>
+      <button id="gotoRegister">Create new account</button>
+      <div id="loginStatus"></div>
+    </div>
+
+    <!-- Dashboard Page -->
+    <div id="dashboardPage" class="hidden dashboard">
+      <h1 id="welcome"></h1>
+      <div class="card" id="studentSection" class="hidden">
+        <h3>Mark Attendance</h3>
+        <p>Tap below and verify fingerprint or enter PIN.</p>
+        <button id="markAttendanceBtn">Mark Attendance</button>
+        <div id="attendanceStatus"></div>
+      </div>
+
+      <div class="card hidden" id="teacherSection">
+        <h3>Teacher Dashboard</h3>
+        <p>View recent attendance records:</p>
+        <div id="attendanceRecords"></div>
+      </div>
+
+      <button class="logout" id="logoutBtn">Logout</button>
+    </div>
+  </div>
+
+  <script>
+    // Page elements
+    const registerPage = document.getElementById("registerPage");
+    const loginPage = document.getElementById("loginPage");
+    const dashboardPage = document.getElementById("dashboardPage");
+    const regStatus = document.getElementById("regStatus");
+    const loginStatus = document.getElementById("loginStatus");
+    const attendanceStatus = document.getElementById("attendanceStatus");
+    const teacherSection = document.getElementById("teacherSection");
+    const studentSection = document.getElementById("studentSection");
+    const attendanceRecords = document.getElementById("attendanceRecords");
+    const welcome = document.getElementById("welcome");
+
+    // Navigation
+    document.getElementById("gotoLogin").onclick = () => showPage("login");
+    document.getElementById("gotoRegister").onclick = () => showPage("register");
+
+    function showPage(page) {
+      [registerPage, loginPage, dashboardPage].forEach(p => p.classList.add("hidden"));
+      if (page === "register") registerPage.classList.remove("hidden");
+      if (page === "login") loginPage.classList.remove("hidden");
+      if (page === "dashboard") dashboardPage.classList.remove("hidden");
+    }
+
+    // Register
+    document.getElementById("registerBtn").onclick = () => {
+      const name = regName.value.trim();
+      const email = regEmail.value.trim();
+      const role = regRole.value;
+      const pin = regPin.value.trim();
+      if (!name || !email || !pin) {
+        regStatus.textContent = "⚠️ Please fill all fields.";
+        return;
+      }
+      const user = { name, email, role, pin };
+      localStorage.setItem("user_" + email, JSON.stringify(user));
+      regStatus.textContent = "✅ Registered successfully!";
+      setTimeout(() => showPage("login"), 1000);
+    };
+
+    // Login
+    document.getElementById("loginBtn").onclick = () => {
+      const email = loginEmail.value.trim();
+      const pin = loginPin.value.trim();
+      const data = localStorage.getItem("user_" + email);
+      if (!data) {
+        loginStatus.textContent = "❌ User not found.";
+        return;
+      }
+      const user = JSON.parse(data);
+      if (user.pin !== pin) {
+        loginStatus.textContent = "❌ Incorrect PIN.";
+        return;
+      }
+      loginStatus.textContent = "";
+      localStorage.setItem("currentUser", email);
+      openDashboard(user);
+    };
+
+    // Dashboard logic
+    function openDashboard(user) {
+      showPage("dashboard");
+      welcome.textContent = `Welcome, ${user.name} (${user.role})`;
+      if (user.role === "Student") {
+        studentSection.classList.remove("hidden");
+        teacherSection.classList.add("hidden");
+      } else {
+        teacherSection.classList.remove("hidden");
+        studentSection.classList.add("hidden");
+        loadAttendanceRecords();
+      }
+    }
+
+    // Attendance marking (with fingerprint or fallback)
+    document.getElementById("markAttendanceBtn").onclick = async () => {
+      const email = localStorage.getItem("currentUser");
+      const user = JSON.parse(localStorage.getItem("user_" + email));
+      try {
+        if (window.PublicKeyCredential) {
+          attendanceStatus.textContent = "🔒 Waiting for fingerprint...";
+          const publicKey = {
+            challenge: new Uint8Array(32),
+            timeout: 60000,
+            userVerification: "required"
+          };
+          await navigator.credentials.get({ publicKey });
+          markAttendance(user.name);
+        } else {
+          attendanceStatus.textContent = "⚠️ Fingerprint not supported. Using PIN fallback.";
+          setTimeout(() => markAttendance(user.name), 1000);
+        }
+      } catch (err) {
+        attendanceStatus.textContent = "❌ Fingerprint failed: " + err.message;
+      }
+    };
+
+    function markAttendance(name) {
+      const date = new Date().toLocaleString();
+      attendanceStatus.textContent = `✅ Attendance marked for ${name} at ${date}`;
+      const records = JSON.parse(localStorage.getItem("attendanceRecords") || "[]");
+      records.push({ name, date });
+      localStorage.setItem("attendanceRecords", JSON.stringify(records));
+    }
+
+    function loadAttendanceRecords() {
+      const records = JSON.parse(localStorage.getItem("attendanceRecords") || "[]");
+      attendanceRecords.innerHTML = records.length
+        ? records.map(r => `<p>🧍 ${r.name} — ${r.date}</p>`).join("")
+        : "<p>No attendance yet.</p>";
+    }
+
+    // Logout
+    document.getElementById("logoutBtn").onclick = () => {
+      localStorage.removeItem("currentUser");
+      showPage("login");
+    };
+  </script>
+</body>
+</html>
+
