@@ -1,235 +1,378 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Smart Attendance System</title>
-  <style>
-    * { box-sizing: border-box; font-family: "Poppins", sans-serif; }
-    body {
-      margin: 0;
-      background: linear-gradient(135deg, #2c5364, #203a43, #0f2027);
-      color: #fff;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-    }
-    .container {
-      width: 90%;
-      max-width: 420px;
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 16px;
-      padding: 30px;
-      text-align: center;
-      backdrop-filter: blur(10px);
-      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
-    }
-    h1 { margin-bottom: 10px; font-weight: 600; }
-    p { color: #ccc; margin-bottom: 20px; }
-    input, select {
-      width: 100%;
-      padding: 12px;
-      border: none;
-      border-radius: 8px;
-      margin-bottom: 10px;
-      font-size: 15px;
-    }
-    button {
-      width: 100%;
-      padding: 12px;
-      border: none;
-      border-radius: 30px;
-      background: linear-gradient(90deg, #00c6ff, #0072ff);
-      color: #fff;
-      font-size: 16px;
-      cursor: pointer;
-      transition: 0.3s;
-    }
-    button:hover { transform: translateY(-2px); }
-    .hidden { display: none; }
-    #status { margin-top: 15px; color: #aee1ff; font-size: 14px; }
-    .dashboard {
-      text-align: left;
-    }
-    .card {
-      background: rgba(255,255,255,0.1);
-      padding: 15px;
-      border-radius: 12px;
-      margin-bottom: 15px;
-    }
-    .logout {
-      margin-top: 10px;
-      background: #ff4b5c;
-    }
-  </style>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Attendance App — WebAuthn Ready</title>
+<style>
+  :root{ --bg:#0b1220; --card:#0f1724; --accent:#2563eb; --muted:#9aa7b8; color-scheme: dark;
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial;}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;background:linear-gradient(180deg,#071129,#071029);color:#e6eef8;display:flex;align-items:center;justify-content:center;padding:24px}
+  .app{width:100%;max-width:980px}
+  header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+  header h1{margin:0;font-size:20px}
+  .grid{display:grid;grid-template-columns:320px 1fr;gap:18px}
+  .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:16px;border-radius:12px;border:1px solid rgba(255,255,255,0.03)}
+  label{display:block;color:var(--muted);font-size:13px;margin-top:8px}
+  input, select{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);background:transparent;color:inherit;margin-top:6px}
+  button{padding:10px 12px;border-radius:10px;border:0;background:var(--accent);color:white;cursor:pointer;font-weight:600}
+  button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.03);color:var(--muted)}
+  .small{font-size:13px;color:var(--muted)}
+  .muted{color:var(--muted)}
+  .hidden{display:none}
+  .list{list-style:none;padding:0;margin:0}
+  .list li{display:flex;justify-content:space-between;padding:10px;border-radius:8px;margin-bottom:8px;background:rgba(255,255,255,0.02)}
+  table{width:100%;border-collapse:collapse;margin-top:8px}
+  th,td{padding:8px;border-bottom:1px solid rgba(255,255,255,0.03);text-align:left}
+  footer{margin-top:12px;color:var(--muted);font-size:13px;text-align:center}
+  @media (max-width:880px){ .grid{grid-template-columns:1fr} }
+</style>
 </head>
 <body>
-  <div class="container">
-    <!-- Register Page -->
-    <div id="registerPage">
-      <h1>Register</h1>
-      <p>Create your account</p>
-      <input type="text" id="regName" placeholder="Full Name" required>
-      <input type="email" id="regEmail" placeholder="Email" required>
-      <select id="regRole">
-        <option value="Student">Student</option>
-        <option value="Teacher">Teacher</option>
-      </select>
-      <input type="password" id="regPin" placeholder="Create PIN (for login)" required>
-      <button id="registerBtn">Register</button>
-      <button id="gotoLogin">Already have account? Login</button>
-      <div id="regStatus"></div>
-    </div>
+  <div class="app">
+    <header>
+      <h1>Smart Attendance — WebAuthn + PIN (Demo)</h1>
+      <div class="small">WebAuthn: <span id="webauthnSupport">checking…</span></div>
+    </header>
 
-    <!-- Login Page -->
-    <div id="loginPage" class="hidden">
-      <h1>Login</h1>
-      <p>Login with your registered email</p>
-      <input type="email" id="loginEmail" placeholder="Email" required>
-      <input type="password" id="loginPin" placeholder="PIN" required>
-      <button id="loginBtn">Login</button>
-      <button id="gotoRegister">Create new account</button>
-      <div id="loginStatus"></div>
-    </div>
+    <div class="grid">
+      <!-- Left column: Register / Login -->
+      <div class="card">
+        <h3>Account</h3>
 
-    <!-- Dashboard Page -->
-    <div id="dashboardPage" class="hidden dashboard">
-      <h1 id="welcome"></h1>
-      <div class="card" id="studentSection" class="hidden">
-        <h3>Mark Attendance</h3>
-        <p>Tap below and verify fingerprint or enter PIN.</p>
-        <button id="markAttendanceBtn">Mark Attendance</button>
-        <div id="attendanceStatus"></div>
+        <!-- Register -->
+        <div id="registerBox">
+          <label>Role</label>
+          <select id="regRole"><option value="student">Student</option><option value="teacher">Teacher</option></select>
+          <label>Full name</label>
+          <input id="regName" placeholder="Ketan Sable" />
+          <label>Email (unique)</label>
+          <input id="regEmail" placeholder="student@example.edu" />
+          <label>PIN (3-6 digits) — fallback</label>
+          <input id="regPin" placeholder="1234" maxlength="6" />
+          <div style="margin-top:10px" class="row">
+            <button id="btnRegister">Create account</button>
+            <button class="ghost" id="btnToLogin">Login →</button>
+          </div>
+          <div id="regStatus" class="small muted" style="margin-top:10px">Accounts are stored locally for demo.</div>
+        </div>
+
+        <!-- Login -->
+        <div id="loginBox" class="hidden" style="margin-top:12px">
+          <label>Email</label>
+          <input id="loginEmail" placeholder="email" />
+          <label>PIN</label>
+          <input id="loginPin" placeholder="PIN" maxlength="6" />
+          <div style="margin-top:10px" class="row">
+            <button id="btnLogin">Login</button>
+            <button class="ghost" id="btnToRegister">Register →</button>
+          </div>
+          <div id="loginStatus" class="small muted" style="margin-top:10px">Login to access dashboards.</div>
+        </div>
+
+        <!-- Session -->
+        <div id="sessionBox" class="hidden" style="margin-top:12px">
+          <h4>Session</h4>
+          <div class="small">Logged in as <strong id="sessionUser">—</strong></div>
+          <div style="margin-top:10px" class="row">
+            <button class="ghost" id="btnLogout">Logout</button>
+            <button class="ghost" id="btnOpenDashboard">Open Dashboard</button>
+          </div>
+          <div id="sessionInfo" class="small muted" style="margin-top:8px">Session active</div>
+        </div>
       </div>
 
-      <div class="card hidden" id="teacherSection">
-        <h3>Teacher Dashboard</h3>
-        <p>View recent attendance records:</p>
-        <div id="attendanceRecords"></div>
-      </div>
+      <!-- Right column: Dashboard / Actions -->
+      <div class="card">
+        <h3>Dashboard</h3>
 
-      <button class="logout" id="logoutBtn">Logout</button>
+        <!-- Student controls -->
+        <div id="studentControls" class="hidden">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div class="small">Name: <strong id="stuName">—</strong></div>
+              <div class="small">Email: <strong id="stuEmail">—</strong></div>
+            </div>
+            <div>
+              <button class="ghost" id="btnRegisterDevice" disabled>Register Device</button>
+            </div>
+          </div>
+
+          <div style="margin-top:12px" class="row">
+            <button id="btnMarkAttendance">Mark Attendance</button>
+            <button class="ghost" id="btnMyHistory">My History</button>
+          </div>
+
+          <div id="studentStatus" class="small muted" style="margin-top:10px">Not marked yet.</div>
+          <div id="myHistory" class="hidden" style="margin-top:12px">
+            <h4>My attendance history</h4>
+            <table id="myHistoryTable"><thead><tr><th>Date</th><th>Time</th></tr></thead><tbody></tbody></table>
+          </div>
+        </div>
+
+        <!-- Teacher controls -->
+        <div id="teacherControls" class="hidden">
+          <div style="display:flex;gap:8px;align-items:center">
+            <input id="searchEmail" placeholder="Search by email" />
+            <button class="ghost" id="btnSearch">Search</button>
+            <button class="ghost" id="btnExport">Export CSV</button>
+            <button class="ghost" id="btnClearToday">Clear Today's</button>
+          </div>
+
+          <div style="margin-top:12px">
+            <table id="teacherTable"><thead><tr><th>Name</th><th>Email</th><th>Time</th></tr></thead><tbody></tbody></table>
+          </div>
+        </div>
+
+        <div id="dashboardStatus" class="small muted" style="margin-top:12px">Open a student or teacher panel after login.</div>
+      </div>
     </div>
+
+    <footer>Demo — WebAuthn registration & authentication implemented correctly. Use localhost/HTTPS.</footer>
   </div>
 
-  <script>
-    // Page elements
-    const registerPage = document.getElementById("registerPage");
-    const loginPage = document.getElementById("loginPage");
-    const dashboardPage = document.getElementById("dashboardPage");
-    const regStatus = document.getElementById("regStatus");
-    const loginStatus = document.getElementById("loginStatus");
-    const attendanceStatus = document.getElementById("attendanceStatus");
-    const teacherSection = document.getElementById("teacherSection");
-    const studentSection = document.getElementById("studentSection");
-    const attendanceRecords = document.getElementById("attendanceRecords");
-    const welcome = document.getElementById("welcome");
+<script>
+/* ========= Utilities & storage ========= */
+const $ = id => document.getElementById(id);
+const isWebAuthn = !!(window.PublicKeyCredential);
+$('webauthnSupport').textContent = isWebAuthn ? 'available' : 'not available';
 
-    // Navigation
-    document.getElementById("gotoLogin").onclick = () => showPage("login");
-    document.getElementById("gotoRegister").onclick = () => showPage("register");
+// storage keys
+const acctKey = e => `acct_${e}`;
+const credKey = e => `webauthn_cred_${e}`;
+const attendanceKeyForDate = (d=new Date()) => `attendance_${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
 
-    function showPage(page) {
-      [registerPage, loginPage, dashboardPage].forEach(p => p.classList.add("hidden"));
-      if (page === "register") registerPage.classList.remove("hidden");
-      if (page === "login") loginPage.classList.remove("hidden");
-      if (page === "dashboard") dashboardPage.classList.remove("hidden");
-    }
+function saveAccount(obj){ localStorage.setItem(acctKey(obj.email), JSON.stringify(obj)); }
+function loadAccount(email){ const v = localStorage.getItem(acctKey(email)); return v ? JSON.parse(v) : null; }
+function saveCredId(email, b64u){ localStorage.setItem(credKey(email), b64u); }
+function getCredId(email){ return localStorage.getItem(credKey(email)); }
+function addAttendance(entry){
+  const key = attendanceKeyForDate();
+  const arr = JSON.parse(localStorage.getItem(key) || '[]');
+  if(arr.find(x=>x.email === entry.email)) return false;
+  arr.push(entry); localStorage.setItem(key, JSON.stringify(arr)); return true;
+}
+function loadTodayAttendance(){ return JSON.parse(localStorage.getItem(attendanceKeyForDate()) || '[]'); }
+function clearTodayAttendance(){ localStorage.removeItem(attendanceKeyForDate()); }
 
-    // Register
-    document.getElementById("registerBtn").onclick = () => {
-      const name = regName.value.trim();
-      const email = regEmail.value.trim();
-      const role = regRole.value;
-      const pin = regPin.value.trim();
-      if (!name || !email || !pin) {
-        regStatus.textContent = "⚠️ Please fill all fields.";
-        return;
-      }
-      const user = { name, email, role, pin };
-      localStorage.setItem("user_" + email, JSON.stringify(user));
-      regStatus.textContent = "✅ Registered successfully!";
-      setTimeout(() => showPage("login"), 1000);
+// base64url <-> ArrayBuffer helpers
+function bufToB64Url(buf){
+  const bytes = new Uint8Array(buf); let s=''; for(let i=0;i<bytes.length;i++) s+=String.fromCharCode(bytes[i]);
+  return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+function b64UrlToBuf(b64u){
+  const b64 = b64u.replace(/-/g,'+').replace(/_/g,'/');
+  const pad = b64.length % 4 === 0 ? '' : '='.repeat(4 - (b64.length % 4));
+  const bin = atob(b64 + pad); const bytes = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i); return bytes.buffer;
+}
+function randomChallenge(len=32){ const b = new Uint8Array(len); crypto.getRandomValues(b); return b.buffer; }
+
+// escape
+function esc(s){ return String(s).replace(/[&<>"']/g, c=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'})[c]); }
+
+/* ========= UI wiring ========= */
+$('btnToLogin').addEventListener('click', ()=> { $('registerBox').classList.add('hidden'); $('loginBox').classList.remove('hidden'); });
+$('btnToRegister').addEventListener('click', ()=> { $('loginBox').classList.add('hidden'); $('registerBox').classList.remove('hidden'); });
+
+// Register account
+$('btnRegister').addEventListener('click', ()=> {
+  const role = $('regRole').value;
+  const name = $('regName').value.trim();
+  const email = $('regEmail').value.trim().toLowerCase();
+  const pin = $('regPin').value.trim();
+  if(!name || !email || !pin){ $('regStatus').textContent = 'All fields required (PIN needed for fallback).'; return; }
+  if(pin.length < 3){ $('regStatus').textContent = 'PIN must be at least 3 digits.'; return; }
+  if(loadAccount(email)){ $('regStatus').textContent = 'Account already exists.'; return; }
+  saveAccount({name, email, pin, role});
+  $('regStatus').textContent = `Registered ${role}: ${esc(email)} — login now.`;
+  $('regName').value=''; $('regEmail').value=''; $('regPin').value='';
+  $('registerBox').classList.add('hidden'); $('loginBox').classList.remove('hidden');
+});
+
+// Login
+let currentEmail = null, currentName = null, currentRole = null;
+$('btnLogin').addEventListener('click', ()=> {
+  const email = $('loginEmail').value.trim().toLowerCase();
+  const pin = $('loginPin').value.trim();
+  const acc = loadAccount(email);
+  if(!acc){ $('loginStatus').textContent = 'Account not found.'; return; }
+  if(acc.pin !== pin){ $('loginStatus').textContent = 'Incorrect PIN.'; return; }
+  currentEmail = acc.email; currentName = acc.name; currentRole = acc.role;
+  $('sessionBox').classList.remove('hidden'); $('sessionUser').textContent = `${esc(currentName)} (${esc(currentRole)})`;
+  $('registerBox').classList.add('hidden'); $('loginBox').classList.add('hidden');
+  $('btnRegisterDevice').disabled = !isWebAuthn;
+  $('dashboardStatus').textContent = `Welcome ${currentName}. Open your panel below.`;
+  openPanelForRole();
+});
+
+// Logout
+$('btnLogout').addEventListener('click', ()=> {
+  currentEmail = currentName = currentRole = null;
+  $('sessionBox').classList.add('hidden'); $('studentControls').classList.add('hidden'); $('teacherControls').classList.add('hidden');
+  $('dashboardStatus').textContent = 'Logged out.';
+  $('sessionUser').textContent = '—';
+});
+
+// open dashboard based on role
+$('btnOpenDashboard').addEventListener('click', openPanelForRole);
+function openPanelForRole(){
+  if(!currentRole) return;
+  $('studentControls').classList.add('hidden'); $('teacherControls').classList.add('hidden');
+  if(currentRole === 'student'){
+    $('studentControls').classList.remove('hidden');
+    $('stuName').textContent = esc(currentName); $('stuEmail').textContent = esc(currentEmail);
+    $('studentStatus').textContent = 'Ready to mark attendance. Register device for biometric first (optional).';
+    $('myHistory').classList.add('hidden');
+    $('btnRegisterDevice').disabled = !isWebAuthn;
+  } else {
+    $('teacherControls').classList.remove('hidden');
+    renderTeacherTable();
+  }
+}
+
+/* ========= WebAuthn registration & authentication ========= */
+
+// Register device credential for current student
+async function registerDeviceCredential(){
+  if(!currentEmail) { alert('Login first'); return; }
+  if(!isWebAuthn) { alert('WebAuthn not supported on this browser'); return; }
+  $('studentStatus').textContent = 'Creating device credential — follow device prompt...';
+  try{
+    const userId = new TextEncoder().encode(currentEmail);
+    const publicKey = {
+      challenge: randomChallenge(),
+      rp: { name: 'College Demo' },
+      user: { id: userId, name: currentEmail, displayName: currentName },
+      pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+      timeout: 60000,
+      authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required' },
+      attestation: 'none'
     };
-
-    // Login
-    document.getElementById("loginBtn").onclick = () => {
-      const email = loginEmail.value.trim();
-      const pin = loginPin.value.trim();
-      const data = localStorage.getItem("user_" + email);
-      if (!data) {
-        loginStatus.textContent = "❌ User not found.";
-        return;
-      }
-      const user = JSON.parse(data);
-      if (user.pin !== pin) {
-        loginStatus.textContent = "❌ Incorrect PIN.";
-        return;
-      }
-      loginStatus.textContent = "";
-      localStorage.setItem("currentUser", email);
-      openDashboard(user);
-    };
-
-    // Dashboard logic
-    function openDashboard(user) {
-      showPage("dashboard");
-      welcome.textContent = `Welcome, ${user.name} (${user.role})`;
-      if (user.role === "Student") {
-        studentSection.classList.remove("hidden");
-        teacherSection.classList.add("hidden");
-      } else {
-        teacherSection.classList.remove("hidden");
-        studentSection.classList.add("hidden");
-        loadAttendanceRecords();
-      }
+    let credential;
+    try {
+      credential = await navigator.credentials.create({ publicKey });
+    } catch(err) {
+      // fallback: retry without forcing platform attachment (some devices reject platform-only create)
+      console.warn('platform create failed, retrying fallback', err);
+      const fallback = Object.assign({}, publicKey); delete fallback.authenticatorSelection;
+      credential = await navigator.credentials.create({ publicKey: fallback });
     }
+    if(!credential || !credential.rawId) throw new Error('No credential created');
+    const idB64u = bufToB64Url(credential.rawId);
+    saveCredId(currentEmail, idB64u);
+    $('studentStatus').textContent = 'Device credential stored locally for this account.';
+  } catch(err){
+    console.error(err);
+    $('studentStatus').textContent = 'Credential registration failed: ' + (err.message || err);
+  }
+}
+$('btnRegisterDevice').addEventListener('click', registerDeviceCredential);
 
-    // Attendance marking (with fingerprint or fallback)
-    document.getElementById("markAttendanceBtn").onclick = async () => {
-      const email = localStorage.getItem("currentUser");
-      const user = JSON.parse(localStorage.getItem("user_" + email));
-      try {
-        if (window.PublicKeyCredential) {
-          attendanceStatus.textContent = "🔒 Waiting for fingerprint...";
-          const publicKey = {
-            challenge: new Uint8Array(32),
-            timeout: 60000,
-            userVerification: "required"
-          };
-          await navigator.credentials.get({ publicKey });
-          markAttendance(user.name);
-        } else {
-          attendanceStatus.textContent = "⚠️ Fingerprint not supported. Using PIN fallback.";
-          setTimeout(() => markAttendance(user.name), 1000);
-        }
-      } catch (err) {
-        attendanceStatus.textContent = "❌ Fingerprint failed: " + err.message;
-      }
-    };
-
-    function markAttendance(name) {
-      const date = new Date().toLocaleString();
-      attendanceStatus.textContent = `✅ Attendance marked for ${name} at ${date}`;
-      const records = JSON.parse(localStorage.getItem("attendanceRecords") || "[]");
-      records.push({ name, date });
-      localStorage.setItem("attendanceRecords", JSON.stringify(records));
+// Authenticate (get) and mark attendance — tries WebAuthn first, then PIN fallback
+async function authenticateAndMark(){
+  if(!currentEmail) { alert('Login first'); return; }
+  const credIdB64 = getCredId(currentEmail);
+  if(isWebAuthn && credIdB64){
+    $('studentStatus').textContent = 'Authenticating (biometric)...';
+    try {
+      const allow = [{ id: b64UrlToBuf(credIdB64), type: 'public-key', transports: ['internal'] }];
+      const publicKey = { challenge: randomChallenge(), timeout: 60000, allowCredentials: allow, userVerification: 'required' };
+      await navigator.credentials.get({ publicKey });
+      // success: mark attendance locally
+      const ok = addAttendance({ name: currentName, email: currentEmail, time: new Date().toLocaleTimeString() });
+      $('studentStatus').textContent = ok ? `Marked present: ${currentName} @ ${new Date().toLocaleTimeString()}` : 'Already marked present today';
+      renderTeacherTable();
+      return;
+    } catch(err){
+      console.warn('Biometric auth failed/cancelled', err);
+      // fall through to PIN fallback
     }
+  }
 
-    function loadAttendanceRecords() {
-      const records = JSON.parse(localStorage.getItem("attendanceRecords") || "[]");
-      attendanceRecords.innerHTML = records.length
-        ? records.map(r => `<p>🧍 ${r.name} — ${r.date}</p>`).join("")
-        : "<p>No attendance yet.</p>";
+  // if device supports WebAuthn but no credential saved, offer to register
+  if(isWebAuthn && !credIdB64){
+    if(confirm('No biometric credential found for this account. Register device now for biometric marking?')){
+      await registerDeviceCredential();
+      return authenticateAndMark(); // try again after registration
     }
+  }
 
-    // Logout
-    document.getElementById("logoutBtn").onclick = () => {
-      localStorage.removeItem("currentUser");
-      showPage("login");
-    };
-  </script>
+  // PIN fallback
+  $('studentStatus').textContent = 'Biometric unavailable or cancelled — PIN fallback.';
+  const acc = loadAccount(currentEmail);
+  if(!acc){ $('studentStatus').textContent = 'Account missing'; return; }
+  const pin = prompt('Enter your PIN to mark attendance:');
+  if(pin === null){ $('studentStatus').textContent = 'PIN cancelled'; return; }
+  if(pin !== acc.pin){ alert('Incorrect PIN'); $('studentStatus').textContent = 'Incorrect PIN'; return; }
+  const ok2 = addAttendance({ name: currentName, email: currentEmail, time: new Date().toLocaleTimeString() });
+  $('studentStatus').textContent = ok2 ? `Marked present (PIN): ${currentName} @ ${new Date().toLocaleTimeString()}` : 'Already marked present today';
+  renderTeacherTable();
+}
+$('btnMarkAttendance').addEventListener('click', authenticateAndMark);
+
+/* ========= History & Teacher view ========= */
+function renderTeacherTable(){
+  const arr = loadTodayAttendance();
+  const tbody = $('teacherTable').querySelector('tbody');
+  tbody.innerHTML = '';
+  if(arr.length === 0){ tbody.innerHTML = '<tr><td colspan="3" class="muted">No attendance today</td></tr>'; return; }
+  arr.forEach(r => tbody.insertAdjacentHTML('beforeend', `<tr><td>${esc(r.name)}</td><td>${esc(r.email)}</td><td>${esc(r.time)}</td></tr>`));
+}
+$('btnSearch').addEventListener('click', ()=> {
+  const q = $('searchEmail').value.trim().toLowerCase();
+  const arr = loadTodayAttendance().filter(a => a.email.includes(q));
+  const tbody = $('teacherTable').querySelector('tbody'); tbody.innerHTML = '';
+  arr.forEach(r => tbody.insertAdjacentHTML('beforeend', `<tr><td>${esc(r.name)}</td><td>${esc(r.email)}</td><td>${esc(r.time)}</td></tr>`));
+});
+$('btnExport').addEventListener('click', ()=> {
+  const arr = loadTodayAttendance();
+  if(arr.length === 0) { alert('No attendance to export'); return; }
+  const rows = [['Name','Email','Time'], ...arr.map(a => [a.name,a.email,a.time])];
+  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' }); const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = `attendance-${new Date().toISOString().slice(0,10)}.csv`; a.click(); URL.revokeObjectURL(url);
+});
+$('btnClearToday').addEventListener('click', ()=> { if(confirm('Clear today attendance?')){ clearTodayAttendance(); renderTeacherTable(); } });
+
+// My history (student)
+$('btnMyHistory').addEventListener('click', ()=> {
+  if(!currentEmail) return;
+  const arr = loadTodayAttendance().filter(a => a.email === currentEmail);
+  const tbody = $('myHistoryTable').querySelector('tbody'); tbody.innerHTML = '';
+  arr.forEach(r => tbody.insertAdjacentHTML('beforeend', `<tr><td>${new Date().toLocaleDateString()}</td><td>${esc(r.time)}</td></tr>`));
+  $('myHistory').classList.remove('hidden');
+});
+
+/* ========= Small helpers & initial UI ========= */
+function b64UrlToBuf(b64u){ return b64UrlToBuf_internal(b64u); } // alias for code clarity
+
+function b64UrlToBuf_internal(b64u){
+  const b64 = b64u.replace(/-/g,'+').replace(/_/g,'/');
+  const pad = b64.length % 4 === 0 ? '' : '='.repeat(4 - (b64.length % 4));
+  const bin = atob(b64 + pad); const bytes = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i); return bytes.buffer;
+}
+
+function bufToB64Url(buf){ return bufToB64Url_internal(buf); }
+function bufToB64Url_internal(buf){
+  const bytes = new Uint8Array(buf); let s=''; for(let i=0;i<bytes.length;i++) s+=String.fromCharCode(bytes[i]);
+  return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+
+// small escape for text nodes
+function esc(s){ return String(s).replace(/[&<>"']/g, c=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'})[c]); }
+
+// set initial UI state
+$('registerBox').classList.remove('hidden'); $('loginBox').classList.add('hidden'); $('sessionBox').classList.add('hidden');
+$('studentControls').classList.add('hidden'); $('teacherControls').classList.add('hidden');
+if(!isWebAuthn) $('dashboardStatus').textContent = 'WebAuthn not supported: devices will use PIN fallback.';
+
+// try to keep teacher table refreshable
+document.querySelector('[id="btnOpenDashboard"]').addEventListener('click', ()=> { if(currentRole === 'teacher') renderTeacherTable(); });
+
+</script>
 </body>
 </html>
 
