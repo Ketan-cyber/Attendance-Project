@@ -1,244 +1,400 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>College Attendance App</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>College Attendance App — WebAuthn Enabled</title>
 <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
-
 <style>
-/* ------------------ GLOBAL STYLES ------------------ */
+/* ---------- Styles (kept the look you provided) ---------- */
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap');
-* { margin: 0; padding: 0; box-sizing: border-box; font-family: "Poppins", sans-serif; }
-body {
-    display: flex; justify-content: center; align-items: center;
-    min-height: 100vh; background: linear-gradient(90deg, #e2e2e2, #c9d6ff);
-}
+*{box-sizing:border-box;font-family:"Poppins",sans-serif;margin:0;padding:0}
+body{display:flex;justify-content:center;align-items:center;min-height:100vh;background:linear-gradient(90deg,#e2e2e2,#c9d6ff)}
+.container{position:relative;width:850px;height:550px;background:#fff;border-radius:30px;box-shadow:0 0 30px rgba(0,0,0,.2);overflow:hidden;transition:.6s}
+.container h1{font-size:36px}
+.form-box{position:absolute;right:0;width:50%;height:100%;background:#fff;display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center;color:#333;padding:40px;z-index:1;transition:.6s ease-in-out 1.2s,visibility 0s 1s}
+.container.active .form-box{right:50%}
+.form-box.register{visibility:hidden}
+.container.active .form-box.register{visibility:visible}
+.input-box{margin:20px 0;position:relative;width:100%}
+.input-box input, .input-box select{width:100%;padding:13px 50px 13px 20px;background:#eee;border-radius:8px;border:none;font-size:16px;font-weight:500}
+.input-box i{position:absolute;right:20px;top:50%;transform:translateY(-50%);font-size:20px}
+.btn{width:100%;height:48px;background:#7494ec;border-radius:8px;border:none;box-shadow:0 0 10px rgba(0,0,0,.1);cursor:pointer;font-size:16px;color:#fff;font-weight:600}
+.toggle-box{position:absolute;width:100%;height:100%}
+.toggle-box::before{content:'';position:absolute;left:-250%;width:300%;height:100%;background:#7494ec;border-radius:150px;z-index:2;transition:1.8s ease-in-out}
+.container.active .toggle-box::before{left:50%}
+.toggle-panel{position:absolute;width:50%;height:100%;color:#fff;display:flex;flex-direction:column;justify-content:center;align-items:center;z-index:2;transition:.6s ease-in-out}
+.toggle-left{left:0;transition-delay:1.2s}
+.container.active .toggle-left{left:-50%;transition-delay:.6s}
+.toggle-right{right:-50%;transition-delay:.6s}
+.container.active .toggle-right{right:0;transition-delay:1.2s}
 
-/* ------------------ AUTH CONTAINER ------------------ */
-.container {
-    position: relative; width: 850px; height: 550px; background: #fff;
-    border-radius: 30px; box-shadow: 0 0 30px rgba(0,0,0,.2); overflow: hidden;
-    transition: 0.6s;
-}
-.container h1 { font-size: 36px; }
-.container p { font-size: 14.5px; margin: 15px 0; }
-
-.form-box {
-    position: absolute; right: 0; width: 50%; height: 100%; background: #fff;
-    padding: 40px; display: flex; align-items: center; justify-content: center;
-    flex-direction: column; text-align: center; color: #333; z-index: 1;
-    transition: 0.6s ease-in-out 1.2s, visibility 0s 1s;
-}
-.container.active .form-box { right: 50%; }
-.form-box.register { visibility: hidden; }
-.container.active .form-box.register { visibility: visible; }
-
-.input-box { margin: 20px 0; position: relative; width: 100%; }
-.input-box input {
-    width: 100%; padding: 13px 50px 13px 20px; background: #eee;
-    border-radius: 8px; border: none; font-size: 16px; font-weight: 500;
-}
-.input-box i { position: absolute; right: 20px; top: 50%; transform: translateY(-50%); }
-
-.btn {
-    width: 100%; height: 48px; background: #7494ec;
-    border-radius: 8px; border: none; color: #fff; font-weight: 600; cursor: pointer;
-}
-
-.toggle-box {
-    position: absolute; width: 100%; height: 100%;
-}
-.toggle-box::before {
-    content: ''; position: absolute; left: -250%; width: 300%; height: 100%;
-    background: #7494ec; border-radius: 150px; z-index: 2;
-    transition: 1.8s ease-in-out;
-}
-.container.active .toggle-box::before { left: 50%; }
-
-.toggle-panel {
-    position: absolute; width: 50%; height: 100%; color: #fff;
-    display: flex; flex-direction: column; justify-content: center; align-items: center;
-    z-index: 2; transition: 0.6s ease-in-out;
-}
-.toggle-left { left: 0; }
-.container.active .toggle-left { left: -50%; }
-
-.toggle-right { right: -50%; }
-.container.active .toggle-right { right: 0; }
-
-/* ------------------ DASHBOARD ------------------ */
-.dashboard {
-    display: none; width: 100%; height: 100vh; padding: 30px;
-    background: #f5f7ff;
-}
-nav {
-    background: #fff; padding: 15px 20px; border-radius: 15px;
-    display: flex; justify-content: space-between; align-items: center;
-    box-shadow: 0 0 10px rgba(0,0,0,.1);
-}
-.content-card {
-    margin-top: 30px; background: #fff; padding: 25px;
-    border-radius: 15px; box-shadow: 0 0 10px rgba(0,0,0,.1);
-}
-.attendance-btn {
-    margin-top: 20px; padding: 15px; font-size: 18px; width: 100%;
-    border-radius: 10px; background: #7494ec; border: none; color: #fff;
-}
+/* Dashboard */
+.dashboard{display:none;width:100%;min-height:100vh;padding:24px;background:#f5f7ff}
+nav{background:#fff;padding:12px 18px;border-radius:12px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 0 10px rgba(0,0,0,.08)}
+.content-card{margin-top:18px;background:#fff;padding:18px;border-radius:12px;box-shadow:0 6px 20px rgba(0,0,0,.06)}
+.attendance-btn{margin-top:14px;padding:14px;font-size:16px;width:100%;border-radius:10px;background:#5b8df7;color:#fff;border:0}
+.small{font-size:13px;color:#5b6770}
+.row{display:flex;gap:10px;align-items:center}
+.hidden{display:none}
+.table{width:100%;border-collapse:collapse;margin-top:10px}
+.table th,.table td{padding:8px;border-bottom:1px solid #eee;text-align:left}
+.note{margin-top:10px;color:#6b7280;font-size:13px}
 </style>
 </head>
-
 <body>
 
-<!-- ---------------- LOGIN + REGISTER PAGE ---------------- -->
+<!-- AUTH UI -->
 <div class="container" id="authContainer">
-
-    <!-- LOGIN -->
-    <div class="form-box login">
-        <h1>Login</h1>
-
-        <div class="input-box">
-            <input id="loginUser" type="text" placeholder="Username" required>
-            <i class='bx bxs-user'></i>
-        </div>
-
-        <div class="input-box">
-            <input id="loginPass" type="password" placeholder="Password" required>
-            <i class='bx bxs-lock-alt'></i>
-        </div>
-
-        <div class="input-box">
-            <select id="loginRole" style="width:100%;padding:13px;border-radius:8px;border:none;background:#eee;">
-                <option value="student">Student</option>
-                <option value="teacher">Teacher</option>
-            </select>
-        </div>
-
-        <button class="btn" onclick="login()">Login</button>
+  <!-- LOGIN -->
+  <div class="form-box login">
+    <h1>Login</h1>
+    <div class="input-box"><input id="loginUser" placeholder="Username"></div>
+    <div class="input-box"><input id="loginPass" type="password" placeholder="Password"></div>
+    <div class="input-box">
+      <select id="loginRole">
+        <option value="student">Student</option>
+        <option value="teacher">Teacher</option>
+      </select>
     </div>
+    <button class="btn" id="loginBtn">Login</button>
+    <div class="note" id="loginMsg"></div>
+  </div>
 
-    <!-- REGISTER -->
-    <div class="form-box register">
-        <h1>Register</h1>
-
-        <div class="input-box">
-            <input id="regUser" type="text" placeholder="Username" required>
-            <i class='bx bxs-user'></i>
-        </div>
-
-        <div class="input-box">
-            <input id="regEmail" type="email" placeholder="Email" required>
-            <i class='bx bxs-envelope'></i>
-        </div>
-
-        <div class="input-box">
-            <input id="regPass" type="password" placeholder="Password" required>
-            <i class='bx bxs-lock-alt'></i>
-        </div>
-
-        <div class="input-box">
-            <select id="regRole" style="width:100%;padding:13px;border-radius:8px;border:none;background:#eee;">
-                <option value="student">Student</option>
-                <option value="teacher">Teacher</option>
-            </select>
-        </div>
-
-        <button class="btn" onclick="register()">Register</button>
+  <!-- REGISTER -->
+  <div class="form-box register">
+    <h1>Registration</h1>
+    <div class="input-box"><input id="regUser" placeholder="Username"><i class='bx bxs-user'></i></div>
+    <div class="input-box"><input id="regEmail" placeholder="Email (unique)"><i class='bx bxs-envelope'></i></div>
+    <div class="input-box"><input id="regPass" type="password" placeholder="Password"><i class='bx bxs-lock-alt'></i></div>
+    <div class="input-box">
+      <select id="regRole">
+        <option value="student">Student</option>
+        <option value="teacher">Teacher</option>
+      </select>
     </div>
+    <button class="btn" id="registerBtn">Register</button>
+    <div class="note" id="regMsg"></div>
+  </div>
 
-    <div class="toggle-box">
-        <div class="toggle-panel toggle-left"><h1>Hello, Welcome!</h1><button class="btn" onclick="activateRegister()">Register</button></div>
-        <div class="toggle-panel toggle-right"><h1>Welcome Back!</h1><button class="btn" onclick="activateLogin()">Login</button></div>
+  <div class="toggle-box">
+    <div class="toggle-panel toggle-left">
+      <h1>Hello, Welcome!</h1>
+      <p class="small">New to the system? Create an account to start.</p>
+      <button class="btn" id="showRegister">Register</button>
     </div>
-
+    <div class="toggle-panel toggle-right">
+      <h1>Welcome Back!</h1>
+      <p class="small">Login to your dashboard to mark attendance.</p>
+      <button class="btn" id="showLogin">Login</button>
+    </div>
+  </div>
 </div>
 
-<!-- ---------------- STUDENT DASHBOARD ---------------- -->
+<!-- STUDENT DASHBOARD -->
 <div class="dashboard" id="studentDashboard">
-    <nav>
-        <h2>Student Dashboard</h2>
-        <button onclick="logout()" class="btn" style="width:120px;">Logout</button>
-    </nav>
+  <nav>
+    <div><strong>Student Dashboard</strong><div class="small" id="studentInfo"></div></div>
+    <div><button class="btn" id="logoutBtn">Logout</button></div>
+  </nav>
 
-    <div class="content-card">
-        <h3>Mark Attendance</h3>
-        <button class="attendance-btn" onclick="markAttendance()">Scan Fingerprint</button>
+  <div class="content-card">
+    <h3>Mark Attendance</h3>
+    <p class="small">Register device once (Register Device) to use fingerprint/FaceID. You can also use PIN fallback.</p>
+    <div class="row" style="margin-top:12px">
+      <button class="btn" id="registerDeviceBtn">Register Device</button>
+      <button class="attendance-btn" id="markBtn">Mark Attendance (Biometric)</button>
     </div>
+    <div class="note" id="studentStatus">Status: Not marked yet.</div>
+
+    <div style="margin-top:18px">
+      <h4>My Today's Attendance</h4>
+      <table class="table" id="myHistory"><thead><tr><th>Date</th><th>Time</th></tr></thead><tbody></tbody></table>
+    </div>
+  </div>
 </div>
 
-<!-- ---------------- TEACHER DASHBOARD ---------------- -->
+<!-- TEACHER DASHBOARD -->
 <div class="dashboard" id="teacherDashboard">
-    <nav>
-        <h2>Teacher Dashboard</h2>
-        <button onclick="logout()" class="btn" style="width:120px;">Logout</button>
-    </nav>
+  <nav>
+    <div><strong>Teacher Dashboard</strong><div class="small" id="teacherInfo"></div></div>
+    <div><button class="btn" id="logoutBtn2">Logout</button></div>
+  </nav>
 
-    <div class="content-card">
-        <h3>Attendance Tools</h3>
-        <button class="attendance-btn" onclick="markAttendance()">Authenticate (Fingerprint)</button>
+  <div class="content-card">
+    <h3>Today's Attendance</h3>
+    <div class="row" style="margin-top:10px">
+      <input id="searchEmail" placeholder="Search by email" style="flex:1;padding:10px;border-radius:8px;border:1px solid #eee">
+      <button class="btn" id="searchBtn">Search</button>
+      <button class="btn" id="exportBtn" style="background:#6ee7b7;color:#043527">Export CSV</button>
+      <button class="btn" id="clearBtn" style="background:#f87171">Clear Today</button>
     </div>
+
+    <table class="table" id="teacherTable" style="margin-top:12px"><thead><tr><th>Name</th><th>Email</th><th>Time</th></tr></thead><tbody></tbody></table>
+  </div>
 </div>
 
 <script>
-/* ---------------- AUTH PANEL SWITCH ---------------- */
-function activateRegister(){ document.querySelector('.container').classList.add('active'); }
-function activateLogin(){ document.querySelector('.container').classList.remove('active'); }
+/* ===================== WebAuthn + App Logic =====================
 
-/* ---------------- USER REGISTRATION ---------------- */
-function register() {
-    let user = regUser.value.trim();
-    let pass = regPass.value.trim();
-    let email = regEmail.value.trim();
-    let role = regRole.value;
+  Demo notes:
+  - Uses localStorage for accounts, credential IDs, attendance (demo only).
+  - WebAuthn registration (navigator.credentials.create) saves credential.rawId as base64url.
+  - WebAuthn authentication (navigator.credentials.get) uses saved credential id.
+  - This is a client-only demo. Production must issue server challenges and verify assertions server-side.
 
-    if(!user || !pass){ alert("Fill all fields"); return; }
+  Testing:
+  - Run on http://localhost or HTTPS.
+  - Use Chrome/Edge for best compatibility.
+=============================================================== */
 
-    localStorage.setItem("user_"+user, JSON.stringify({user, pass, email, role}));
-    alert("Registered successfully!");
-    activateLogin();
+/* ---------- Helpers ---------- */
+const el = id => document.getElementById(id);
+const supportsWebAuthn = !!window.PublicKeyCredential;
+if(!supportsWebAuthn) console.warn('WebAuthn not supported in this browser — PIN fallback will be used.');
+
+// localStorage helpers
+const acctKey = name => `acct_${name}`;
+const credKey = email => `webauthn_cred_${email}`;
+const attendanceKey = d => `attendance_${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+
+function saveAccount(obj){ localStorage.setItem(acctKey(obj.username), JSON.stringify(obj)); }
+function loadAccount(username){ const v = localStorage.getItem(acctKey(username)); return v ? JSON.parse(v) : null; }
+function saveCredId(email, b64u){ localStorage.setItem(credKey(email), b64u); }
+function getCredId(email){ return localStorage.getItem(credKey(email)); }
+function addAttendanceRecord(email, name){
+  const key = attendanceKey(new Date());
+  const arr = JSON.parse(localStorage.getItem(key) || '[]');
+  if(arr.find(x=>x.email === email)) return false; // prevent duplicate
+  arr.push({ email, name, time: new Date().toLocaleTimeString() });
+  localStorage.setItem(key, JSON.stringify(arr));
+  return true;
+}
+function getTodayAttendance(){ return JSON.parse(localStorage.getItem(attendanceKey(new Date())) || '[]'); }
+function clearToday(){ localStorage.removeItem(attendanceKey(new Date())); }
+
+// base64url helpers
+function bufToBase64Url(buf){
+  const bytes = new Uint8Array(buf); let s=''; for(let i=0;i<bytes.length;i++) s+=String.fromCharCode(bytes[i]);
+  return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+function base64UrlToBuf(b64u){
+  const b64 = b64u.replace(/-/g,'+').replace(/_/g,'/');
+  const pad = b64.length % 4 === 0 ? '' : '='.repeat(4 - (b64.length % 4));
+  const bin = atob(b64 + pad);
+  const bytes = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i);
+  return bytes.buffer;
+}
+function randomChallenge(len=32){
+  const b = new Uint8Array(len); crypto.getRandomValues(b); return b.buffer;
 }
 
-/* ---------------- USER LOGIN ---------------- */
-function login() {
-    let user = loginUser.value.trim();
-    let pass = loginPass.value.trim();
-    let role = loginRole.value;
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'})[c]); }
 
-    let data = localStorage.getItem("user_"+user);
-    if(!data){ alert("User not found!"); return; }
+/* ---------- UI elements ---------- */
+const authContainer = el('authContainer');
+const studentDashboard = el('studentDashboard');
+const teacherDashboard = el('teacherDashboard');
+const loginMsg = el('loginMsg'), regMsg = el('regMsg');
+const studentStatus = el('studentStatus'), myHistoryTable = el('myHistory').querySelector('tbody');
+const teacherTable = el('teacherTable').querySelector('tbody');
+const studentInfo = el('studentInfo'), teacherInfo = el('teacherInfo');
 
-    let obj = JSON.parse(data);
+let session = null; // { username, email, role, name }
 
-    if(obj.pass !== pass){ alert("Incorrect Password"); return; }
-    if(obj.role !== role){ alert("Wrong Role Selected"); return; }
+/* ---------- UI toggles ---------- */
+el('showRegister').addEventListener('click', ()=> authContainer.classList.add('active'));
+el('showLogin').addEventListener('click', ()=> authContainer.classList.remove('active'));
 
-    localStorage.setItem("loggedUser", user);
-    localStorage.setItem("loggedRole", role);
+/* ---------- Registration ---------- */
+el('registerBtn').addEventListener('click', ()=> {
+  const username = document.getElementById('regUser').value.trim();
+  const email = document.getElementById('regEmail').value.trim().toLowerCase();
+  const password = document.getElementById('regPass').value;
+  const role = document.getElementById('regRole').value;
 
-    showDashboard(role);
+  if(!username || !email || !password){ regMsg.textContent = 'Fill all fields'; return; }
+  if(loadAccount(username)){ regMsg.textContent = 'Username already taken'; return; }
+
+  // For demo we store simple account. In prod hash passwords and store securely on server.
+  const acc = { username, email, password, role, displayName: username };
+  saveAccount(acc);
+  regMsg.textContent = 'Registered — switch to Login';
+  authContainer.classList.remove('active');
+});
+
+/* ---------- Login ---------- */
+el('loginBtn').addEventListener('click', ()=> {
+  const username = document.getElementById('loginUser').value.trim();
+  const password = document.getElementById('loginPass').value;
+  const role = document.getElementById('loginRole').value;
+  const acc = loadAccount(username);
+  if(!acc){ loginMsg.textContent = 'User not found'; return; }
+  if(acc.password !== password){ loginMsg.textContent = 'Incorrect password'; return; }
+  if(acc.role !== role){ loginMsg.textContent = 'Wrong role selected'; return; }
+
+  // success
+  session = { username: acc.username, email: acc.email, role: acc.role, name: acc.displayName };
+  loginMsg.textContent = '';
+  openDashboardFor(session.role);
+});
+
+/* ---------- Open Dashboard ---------- */
+function openDashboardFor(role){
+  authContainer.style.display = 'none';
+  if(role === 'student'){
+    studentDashboard.style.display = 'block';
+    teacherDashboard.style.display = 'none';
+    studentInfo.textContent = `${escapeHtml(session.name)} • ${escapeHtml(session.email)}`;
+    studentStatus.textContent = 'Ready — you can register device or mark attendance.';
+    refreshMyHistory();
+  } else {
+    teacherDashboard.style.display = 'block';
+    studentDashboard.style.display = 'none';
+    teacherInfo.textContent = `${escapeHtml(session.name)} • ${escapeHtml(session.email)}`;
+    renderTeacherTable();
+  }
 }
 
-/* ---------------- DASHBOARD DISPLAY ---------------- */
-function showDashboard(role){
-    authContainer.style.display="none";
+/* ---------- Logout ---------- */
+function logoutNow(){
+  session = null;
+  authContainer.style.display = 'block';
+  studentDashboard.style.display = 'none';
+  teacherDashboard.style.display = 'none';
+  // optionally clear input fields
+}
+el('logoutBtn').addEventListener('click', logoutNow);
+el('logoutBtn2').addEventListener('click', logoutNow);
 
-    if(role==="student") studentDashboard.style.display="block";
-    else teacherDashboard.style.display="block";
+/* ---------- WebAuthn: Register device (create) ---------- */
+el('registerDeviceBtn').addEventListener('click', async () => {
+  if(!session){ alert('Login first'); return; }
+  if(!supportsWebAuthn){ alert('WebAuthn not supported — cannot register device'); return; }
+  studentStatus.textContent = 'Registering device — follow the system prompt...';
+  try {
+    const userId = new TextEncoder().encode(session.email);
+
+    const publicKey = {
+      challenge: randomChallenge(),
+      rp: { name: 'College Attendance App' },
+      user: { id: userId, name: session.email, displayName: session.name },
+      pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+      timeout: 60000,
+      authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required' },
+      attestation: 'none'
+    };
+
+    let credential;
+    try {
+      credential = await navigator.credentials.create({ publicKey });
+    } catch (err) {
+      // fallback: try without forcing platform attachment
+      console.warn('platform create failed — retrying fallback', err);
+      const fallback = Object.assign({}, publicKey);
+      delete fallback.authenticatorSelection;
+      credential = await navigator.credentials.create({ publicKey: fallback });
+    }
+
+    if(!credential || !credential.rawId) throw new Error('No credential created');
+    const idB64 = bufToBase64Url(credential.rawId);
+    saveCredId(session.email, idB64);
+    studentStatus.textContent = 'Device registered — you can now authenticate with biometric.';
+  } catch (err) {
+    console.error(err);
+    studentStatus.textContent = 'Device registration failed: ' + (err.message || err);
+  }
+});
+
+/* ---------- WebAuthn: Authenticate (get) & mark attendance ---------- */
+el('markBtn').addEventListener('click', async () => {
+  if(!session){ alert('Login first'); return; }
+  const credId = getCredId(session.email);
+  if(supportsWebAuthn && credId){
+    studentStatus.textContent = 'Authenticating — use your device biometric...';
+    try {
+      const allow = [{ id: base64UrlToBuf(credId), type: 'public-key', transports: ['internal'] }];
+      const publicKey = { challenge: randomChallenge(), timeout: 60000, allowCredentials: allow, userVerification: 'required' };
+      await navigator.credentials.get({ publicKey });
+      const ok = addAttendanceRecord(session.email, session.name);
+      studentStatus.textContent = ok ? `Marked present: ${session.name} @ ${new Date().toLocaleTimeString()}` : 'Already marked present today';
+      refreshMyHistory();
+      renderTeacherTable();
+      return;
+    } catch (err) {
+      console.warn('WebAuthn get failed/cancelled', err);
+      // fall through to PIN fallback
+    }
+  }
+
+  // if supportsWebAuthn but no credential registered, offer to register
+  if(supportsWebAuthn && !credId){
+    if(confirm('No biometric credential found for your account. Register your device now?')){
+      await el('registerDeviceBtn').click();
+      return; // user can press mark again
+    }
+  }
+
+  // PIN fallback
+  const acc = loadAccount(session.username);
+  if(!acc){ alert('Account missing'); return; }
+  const pin = prompt('Enter PIN to mark attendance (fallback):');
+  if(pin === null){ studentStatus.textContent = 'PIN cancelled'; return; }
+  if(pin !== acc.password){ alert('Incorrect PIN'); studentStatus.textContent = 'Incorrect PIN'; return; }
+  const ok2 = addAttendanceRecord(session.email, session.name);
+  studentStatus.textContent = ok2 ? `Marked present (PIN): ${session.name} @ ${new Date().toLocaleTimeString()}` : 'Already marked present today';
+  refreshMyHistory();
+  renderTeacherTable();
+});
+
+/* ---------- History & Teacher Table ---------- */
+function refreshMyHistory(){
+  const arr = getTodayAttendance().filter(r => r.email === session.email);
+  myHistoryTable.innerHTML = '';
+  if(arr.length === 0){ myHistoryTable.insertAdjacentHTML('beforeend','<tr><td colspan="2" class="small">No attendance today</td></tr>'); return; }
+  arr.forEach(r => myHistoryTable.insertAdjacentHTML('beforeend', `<tr><td>${new Date().toLocaleDateString()}</td><td>${escapeHtml(r.time)}</td></tr>`));
 }
 
-/* ---------------- LOGOUT ---------------- */
-function logout(){
-    localStorage.removeItem("loggedUser");
-    localStorage.removeItem("loggedRole");
-    location.reload();
+function renderTeacherTable(){
+  const arr = getTodayAttendance();
+  teacherTable.innerHTML = '';
+  if(arr.length === 0){ teacherTable.insertAdjacentHTML('beforeend','<tr><td colspan="3" class="small">No attendance today</td></tr>'); return; }
+  arr.forEach(r => teacherTable.insertAdjacentHTML('beforeend', `<tr><td>${escapeHtml(r.name)}</td><td>${escapeHtml(r.email)}</td><td>${escapeHtml(r.time)}</td></tr>`));
 }
+el('searchBtn').addEventListener('click', ()=> {
+  const q = el('searchEmail').value.trim().toLowerCase();
+  const arr = getTodayAttendance().filter(a => a.email.includes(q));
+  teacherTable.innerHTML = '';
+  arr.forEach(r => teacherTable.insertAdjacentHTML('beforeend', `<tr><td>${escapeHtml(r.name)}</td><td>${escapeHtml(r.email)}</td><td>${escapeHtml(r.time)}</td></tr>`));
+});
+el('exportBtn').addEventListener('click', ()=> {
+  const arr = getTodayAttendance();
+  if(arr.length === 0){ alert('No attendance to export'); return; }
+  const rows = [['Name','Email','Time'], ...arr.map(a=>[a.name,a.email,a.time])];
+  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' }); const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = `attendance-${new Date().toISOString().slice(0,10)}.csv`; a.click(); URL.revokeObjectURL(url);
+});
+el('clearBtn').addEventListener('click', ()=> { if(confirm('Clear today attendance?')){ clearToday(); renderTeacherTable(); } });
 
-/* ---------------- ATTENDANCE (SIMULATED) ---------------- */
-async function markAttendance(){
-    alert("Fingerprint authentication is simulated here.\nTo enable REAL fingerprint, run on localhost or HTTPS with WebAuthn.");
+/* ---------- Utility conversions ---------- */
+function base64UrlToBuf(b64u){
+  const b64 = b64u.replace(/-/g,'+').replace(/_/g,'/');
+  const pad = b64.length % 4 === 0 ? '' : '='.repeat(4 - (b64.length % 4));
+  const bin = atob(b64 + pad); const bytes = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i); return bytes.buffer;
 }
+function bufToBase64Url(buf){ const bytes = new Uint8Array(buf); let s=''; for(let i=0;i<bytes.length;i++) s+=String.fromCharCode(bytes[i]); return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
+// aliases used above
+const b64UrlToBuf = base64UrlToBuf;
+const bufToB64Url = bufToBase64Url;
+
+/* ---------- On load ---------- */
+// If an account is already logged in (optional behavior), you can auto-open dashboard
+// But here we start fresh.
+console.log('App ready — WebAuthn supported:', supportsWebAuthn);
 </script>
-
 </body>
 </html>
 
