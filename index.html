@@ -103,7 +103,6 @@ nav {
     padding: 15px;
     font-size: 18px;
 }
-
 </style>
 </head>
 
@@ -208,9 +207,9 @@ const studentLogoutBtn = document.getElementById('studentLogout');
 const teacherLogoutBtn = document.getElementById('teacherLogout');
 
 /* ----------------------------------------------------
-   STEP 1 — REGISTER USER + CREATE FINGERPRINT KEY
+   REGISTER (NORMAL ONLY — NO FINGERPRINT HERE)
 ---------------------------------------------------- */
-async function register() {
+function register() {
     let user = regUser.value.trim();
     let pass = regPass.value.trim();
     let email = regEmail.value.trim();
@@ -218,43 +217,14 @@ async function register() {
 
     if(!user || !pass){ alert("Fill all fields"); return; }
 
-    // Save user
     localStorage.setItem("user_"+user, JSON.stringify({user, pass, email, role}));
 
-    // Create WebAuthn fingerprint key
-    try {
-        const challenge = new Uint8Array(32);
-        crypto.getRandomValues(challenge);
-
-        const publicKey = {
-            challenge,
-            rp: { name: "Attendance App" },
-            user: {
-                id: new TextEncoder().encode(user),
-                name: user,
-                displayName: user
-            },
-            pubKeyCredParams: [{ type: "public-key", alg: -7 }],
-            authenticatorSelection: {
-                authenticatorAttachment: "platform",
-                userVerification: "required"
-            },
-            timeout: 60000
-        };
-
-        const credential = await navigator.credentials.create({publicKey});
-        localStorage.setItem("fpkey_"+user, JSON.stringify(credential));
-        alert("Registered successfully!\nFingerprint saved.");
-    }
-    catch(err){
-        alert("Registered without fingerprint. You must enable fingerprint later.");
-    }
-
+    alert("Registered Successfully!");
     activateLogin();
 }
 
 /* ----------------------------------------------------
-   STEP 2 — NORMAL LOGIN
+   LOGIN (NORMAL)
 ---------------------------------------------------- */
 function login() {
     let user = loginUser.value.trim();
@@ -304,13 +274,13 @@ studentLogoutBtn.addEventListener('click', logout);
 teacherLogoutBtn.addEventListener('click', logout);
 
 /* ----------------------------------------------------
-   STEP 3 — FINGERPRINT VERIFY + MARK ATTENDANCE
+   FINGERPRINT AUTH — ONLY FOR MARKING ATTENDANCE
 ---------------------------------------------------- */
 async function verifyFingerprint() {
     let user = localStorage.getItem("loggedUser");
 
     if (!window.PublicKeyCredential) {
-        alert("Fingerprint not supported.");
+        alert("Your mobile does not support fingerprint via browser.");
         return;
     }
 
@@ -318,21 +288,22 @@ async function verifyFingerprint() {
         const challenge = new Uint8Array(32);
         crypto.getRandomValues(challenge);
 
-        const publicKey = {
-            challenge,
-            timeout: 60000,
-            userVerification: "required"
-        };
-
-        await navigator.credentials.get({ publicKey });
+        await navigator.credentials.get({
+            publicKey: {
+                challenge,
+                userVerification: "required",
+                timeout: 60000
+            }
+        });
 
         markAttendance(user);
     }
     catch(err){
-        alert("Fingerprint failed or cancelled.");
+        alert("Fingerprint failed or cancelled!");
     }
 }
 
+/* ---------------- MARK ATTENDANCE ---------------- */
 function markAttendance(student) {
     let today = new Date().toISOString().split("T")[0];
     let records = JSON.parse(localStorage.getItem("attendance_"+today)) || [];
@@ -345,12 +316,10 @@ function markAttendance(student) {
     records.push(student);
     localStorage.setItem("attendance_"+today, JSON.stringify(records));
 
-    alert("Fingerprint verified!\nAttendance marked successfully.");
+    alert("Attendance Marked Successfully!");
 }
 
-/* ----------------------------------------------------
-   TEACHER — LOAD TODAY'S ATTENDANCE
----------------------------------------------------- */
+/* ---------------- TEACHER VIEW ---------------- */
 function loadTeacherAttendance() {
     let today = new Date().toISOString().split("T")[0];
     let box = document.querySelector("#teacherDashboard .content-card");
