@@ -207,10 +207,13 @@ nav {
 
 <script>
 /* ---------------- AUTH PANEL SWITCH ---------------- */
-function activateRegister(){ document.querySelector('.container').classList.add('active'); }
-function activateLogin(){ document.querySelector('.container').classList.remove('active'); }
+function activateRegister(){ 
+    document.querySelector('.container').classList.add('active'); 
+}
+function activateLogin(){ 
+    document.querySelector('.container').classList.remove('active'); 
+}
 
-/* Grab important elements as variables (explicit references) */
 const authContainer = document.getElementById('authContainer');
 const studentDashboard = document.getElementById('studentDashboard');
 const teacherDashboard = document.getElementById('teacherDashboard');
@@ -251,7 +254,7 @@ function login() {
     showDashboard(role);
 }
 
-/* ---------------- DASHBOARD DISPLAY ---------------- */
+/* ---------------- DASHBOARD ---------------- */
 function showDashboard(role){
     authContainer.style.display="none";
 
@@ -266,38 +269,57 @@ function showDashboard(role){
 
 /* ---------------- LOGOUT ---------------- */
 function logout() {
-    // remove stored session keys
     localStorage.removeItem("loggedUser");
     localStorage.removeItem("loggedRole");
 
-    // hide dashboards
     studentDashboard.style.display = 'none';
     teacherDashboard.style.display = 'none';
 
-    // show auth container (login/register)
     authContainer.style.display = 'block';
+    activateLogin();
 
-    // clear input fields for safety
     document.getElementById('loginUser').value = '';
     document.getElementById('loginPass').value = '';
     document.getElementById('regUser').value = '';
     document.getElementById('regPass').value = '';
     document.getElementById('regEmail').value = '';
-
-    // ensure the login panel is visible (not the register side)
-    activateLogin();
 }
 
-/* attach logout to bottom buttons explicitly */
 studentLogoutBtn.addEventListener('click', logout);
 teacherLogoutBtn.addEventListener('click', logout);
 
-/* ---------------- ATTENDANCE (SIMULATED) ---------------- */
-async function markAttendance(){
-    alert("Real fingerprint scanning works ONLY on HTTPS / localhost.\nYour function is ready.");
+/* ----------------------------------------------------
+   REAL FINGERPRINT SCANNING USING WebAuthn
+---------------------------------------------------- */
+async function markAttendance() {
+    if (!window.PublicKeyCredential) {
+        alert("Your browser does not support fingerprint scanning.");
+        return;
+    }
+
+    try {
+        // Create a challenge
+        const challenge = new Uint8Array(32);
+        window.crypto.getRandomValues(challenge);
+
+        // Request authentication via fingerprint / face unlock
+        const credential = await navigator.credentials.get({
+            publicKey: {
+                challenge,
+                timeout: 60000,
+                userVerification: "required"  
+            }
+        });
+
+        // If fingerprint is correct:
+        alert("Fingerprint Verified Successfully!\nAttendance Marked.");
+        
+    } catch (err) {
+        console.error(err);
+        alert("Fingerprint Failed or Cancelled.");
+    }
 }
 </script>
-
 </body>
 </html>
 
