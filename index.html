@@ -71,7 +71,7 @@ body {
 /* MOBILE LOOK */
 .dashboard {
     display: none;
-    width: 380px;               /* ↓ MOBILE SIZE SCREEN */
+    width: 380px;               /* MOBILE SIZE */
     height: 700px;
     background: #f5f7ff;
     border-radius: 20px;
@@ -190,7 +190,7 @@ nav {
         <button class="attendance-btn" onclick="markAttendance()">Scan Fingerprint</button>
     </div>
 
-    <button class="logout-bottom" onclick="logout()">Logout</button>
+    <button class="logout-bottom" id="studentLogout">Logout</button>
 </div>
 
 <!-- ---------------- TEACHER DASHBOARD ---------------- -->
@@ -202,7 +202,7 @@ nav {
         <button class="attendance-btn" onclick="markAttendance()">Authenticate (Fingerprint)</button>
     </div>
 
-    <button class="logout-bottom" onclick="logout()">Logout</button>
+    <button class="logout-bottom" id="teacherLogout">Logout</button>
 </div>
 
 <script>
@@ -210,12 +210,19 @@ nav {
 function activateRegister(){ document.querySelector('.container').classList.add('active'); }
 function activateLogin(){ document.querySelector('.container').classList.remove('active'); }
 
+/* Grab important elements as variables (explicit references) */
+const authContainer = document.getElementById('authContainer');
+const studentDashboard = document.getElementById('studentDashboard');
+const teacherDashboard = document.getElementById('teacherDashboard');
+const studentLogoutBtn = document.getElementById('studentLogout');
+const teacherLogoutBtn = document.getElementById('teacherLogout');
+
 /* ---------------- USER REGISTRATION ---------------- */
 function register() {
-    let user = regUser.value.trim();
-    let pass = regPass.value.trim();
-    let email = regEmail.value.trim();
-    let role = regRole.value;
+    let user = document.getElementById('regUser').value.trim();
+    let pass = document.getElementById('regPass').value.trim();
+    let email = document.getElementById('regEmail').value.trim();
+    let role = document.getElementById('regRole').value;
 
     if(!user || !pass){ alert("Fill all fields"); return; }
 
@@ -226,9 +233,9 @@ function register() {
 
 /* ---------------- USER LOGIN ---------------- */
 function login() {
-    let user = loginUser.value.trim();
-    let pass = loginPass.value.trim();
-    let role = loginRole.value;
+    let user = document.getElementById('loginUser').value.trim();
+    let pass = document.getElementById('loginPass').value.trim();
+    let role = document.getElementById('loginRole').value;
 
     let data = localStorage.getItem("user_"+user);
     if(!data){ alert("User not found!"); return; }
@@ -248,16 +255,42 @@ function login() {
 function showDashboard(role){
     authContainer.style.display="none";
 
-    if(role==="student") studentDashboard.style.display="block";
-    else teacherDashboard.style.display="block";
+    if(role==="student"){
+        studentDashboard.style.display="block";
+        teacherDashboard.style.display="none";
+    } else {
+        teacherDashboard.style.display="block";
+        studentDashboard.style.display="none";
+    }
 }
 
 /* ---------------- LOGOUT ---------------- */
-function logout(){
+function logout() {
+    // remove stored session keys
     localStorage.removeItem("loggedUser");
     localStorage.removeItem("loggedRole");
-    location.reload();
+
+    // hide dashboards
+    studentDashboard.style.display = 'none';
+    teacherDashboard.style.display = 'none';
+
+    // show auth container (login/register)
+    authContainer.style.display = 'block';
+
+    // clear input fields for safety
+    document.getElementById('loginUser').value = '';
+    document.getElementById('loginPass').value = '';
+    document.getElementById('regUser').value = '';
+    document.getElementById('regPass').value = '';
+    document.getElementById('regEmail').value = '';
+
+    // ensure the login panel is visible (not the register side)
+    activateLogin();
 }
+
+/* attach logout to bottom buttons explicitly */
+studentLogoutBtn.addEventListener('click', logout);
+teacherLogoutBtn.addEventListener('click', logout);
 
 /* ---------------- ATTENDANCE (SIMULATED) ---------------- */
 async function markAttendance(){
