@@ -178,7 +178,7 @@ nav {
 
     <div class="content-card">
         <h3>Mark Attendance</h3>
-        <button class="attendance-btn" onclick="markAttendance()">Scan Fingerprint</button>
+        <button class="attendance-btn" onclick="verifyFingerprint()">Scan Fingerprint</button>
     </div>
 
     <button class="logout-bottom" id="studentLogout">Logout</button>
@@ -207,25 +207,59 @@ const teacherDashboard = document.getElementById('teacherDashboard');
 const studentLogoutBtn = document.getElementById('studentLogout');
 const teacherLogoutBtn = document.getElementById('teacherLogout');
 
-/* ---------------- USER REGISTRATION ---------------- */
-function register() {
-    let user = document.getElementById('regUser').value.trim();
-    let pass = document.getElementById('regPass').value.trim();
-    let email = document.getElementById('regEmail').value.trim();
-    let role = document.getElementById('regRole').value;
+/* ----------------------------------------------------
+   STEP 1 — REGISTER USER + CREATE FINGERPRINT KEY
+---------------------------------------------------- */
+async function register() {
+    let user = regUser.value.trim();
+    let pass = regPass.value.trim();
+    let email = regEmail.value.trim();
+    let role = regRole.value;
 
     if(!user || !pass){ alert("Fill all fields"); return; }
 
+    // Save user
     localStorage.setItem("user_"+user, JSON.stringify({user, pass, email, role}));
-    alert("Registered successfully!");
+
+    // Create WebAuthn fingerprint key
+    try {
+        const challenge = new Uint8Array(32);
+        crypto.getRandomValues(challenge);
+
+        const publicKey = {
+            challenge,
+            rp: { name: "Attendance App" },
+            user: {
+                id: new TextEncoder().encode(user),
+                name: user,
+                displayName: user
+            },
+            pubKeyCredParams: [{ type: "public-key", alg: -7 }],
+            authenticatorSelection: {
+                authenticatorAttachment: "platform",
+                userVerification: "required"
+            },
+            timeout: 60000
+        };
+
+        const credential = await navigator.credentials.create({publicKey});
+        localStorage.setItem("fpkey_"+user, JSON.stringify(credential));
+        alert("Registered successfully!\nFingerprint saved.");
+    }
+    catch(err){
+        alert("Registered without fingerprint. You must enable fingerprint later.");
+    }
+
     activateLogin();
 }
 
-/* ---------------- USER LOGIN ---------------- */
+/* ----------------------------------------------------
+   STEP 2 — NORMAL LOGIN
+---------------------------------------------------- */
 function login() {
-    let user = document.getElementById('loginUser').value.trim();
-    let pass = document.getElementById('loginPass').value.trim();
-    let role = document.getElementById('loginRole').value;
+    let user = loginUser.value.trim();
+    let pass = loginPass.value.trim();
+    let role = loginRole.value;
 
     let data = localStorage.getItem("user_"+user);
     if(!data){ alert("User not found!"); return; }
@@ -262,26 +296,21 @@ function logout() {
 
     studentDashboard.style.display = 'none';
     teacherDashboard.style.display = 'none';
-
     authContainer.style.display = 'block';
     activateLogin();
-
-    document.getElementById('loginUser').value = '';
-    document.getElementById('loginPass').value = '';
-    document.getElementById('regUser').value = '';
-    document.getElementById('regPass').value = '';
-    document.getElementById('regEmail').value = '';
 }
 
 studentLogoutBtn.addEventListener('click', logout);
 teacherLogoutBtn.addEventListener('click', logout);
 
 /* ----------------------------------------------------
-   REAL FINGERPRINT SCANNING + SAVE ATTENDANCE
+   STEP 3 — FINGERPRINT VERIFY + MARK ATTENDANCE
 ---------------------------------------------------- */
-async function markAttendance() {
+async function verifyFingerprint() {
+    let user = localStorage.getItem("loggedUser");
+
     if (!window.PublicKeyCredential) {
-        alert("Your device does not support fingerprint scanning.");
+        alert("Fingerprint not supported.");
         return;
     }
 
@@ -289,31 +318,34 @@ async function markAttendance() {
         const challenge = new Uint8Array(32);
         crypto.getRandomValues(challenge);
 
-        const credential = await navigator.credentials.get({
-            publicKey: {
-                challenge,
-                timeout: 60000,
-                userVerification: "required" 
-            }
-        });
+        const publicKey = {
+            challenge,
+            timeout: 60000,
+            userVerification: "required"
+        };
 
-        let student = localStorage.getItem("loggedUser");
-        let today = new Date().toISOString().split("T")[0];
-        let records = JSON.parse(localStorage.getItem("attendance_"+today)) || [];
+        await navigator.credentials.get({ publicKey });
 
-        if (records.includes(student)) {
-            alert("Attendance Already Marked Today!");
-            return;
-        }
-
-        records.push(student);
-        localStorage.setItem("attendance_"+today, JSON.stringify(records));
-
-        alert("Fingerprint Verified!\nAttendance Marked.");
-
-    } catch (err) {
-        alert("Fingerprint Failed or Cancelled.");
+        markAttendance(user);
     }
+    catch(err){
+        alert("Fingerprint failed or cancelled.");
+    }
+}
+
+function markAttendance(student) {
+    let today = new Date().toISOString().split("T")[0];
+    let records = JSON.parse(localStorage.getItem("attendance_"+today)) || [];
+
+    if(records.includes(student)){
+        alert("Attendance already marked!");
+        return;
+    }
+
+    records.push(student);
+    localStorage.setItem("attendance_"+today, JSON.stringify(records));
+
+    alert("Fingerprint verified!\nAttendance marked successfully.");
 }
 
 /* ----------------------------------------------------
