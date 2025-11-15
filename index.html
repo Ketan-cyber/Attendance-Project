@@ -46,13 +46,11 @@ body {
     border-radius: 8px; border: none; color: #fff; font-weight: 600; cursor: pointer;
 }
 
-.toggle-box {
-    position: absolute; width: 100%; height: 100%;
-}
+/* Toggle Panel */
+.toggle-box { position: absolute; width: 100%; height: 100%; }
 .toggle-box::before {
     content: ''; position: absolute; left: -250%; width: 300%; height: 100%;
-    background: #7494ec; border-radius: 150px; z-index: 2;
-    transition: 1.8s ease-in-out;
+    background: #7494ec; border-radius: 150px; z-index: 2; transition: 1.8s ease-in-out;
 }
 .container.active .toggle-box::before { left: 50%; }
 
@@ -63,16 +61,13 @@ body {
 }
 .toggle-left { left: 0; }
 .container.active .toggle-left { left: -50%; }
-
 .toggle-right { right: -50%; }
 .container.active .toggle-right { right: 0; }
 
 /* ------------------ DASHBOARD ------------------ */
-/* MOBILE LOOK */
 .dashboard {
     display: none;
-    width: 380px;               /* MOBILE SIZE */
-    height: 700px;
+    width: 380px; height: 700px;
     background: #f5f7ff;
     border-radius: 20px;
     padding: 15px;
@@ -80,26 +75,22 @@ body {
     position: relative;
 }
 
-/* TOP BAR */
 nav {
     background: #fff; padding: 15px; border-radius: 12px;
     display: flex; justify-content: center; align-items: center;
     box-shadow: 0 0 10px rgba(0,0,0,.1);
 }
 
-/* CONTENT CARD */
 .content-card {
     margin-top: 20px; background: #fff; padding: 20px;
     border-radius: 15px; box-shadow: 0 0 10px rgba(0,0,0,.1);
 }
 
-/* BUTTON */
 .attendance-btn {
     margin-top: 20px; padding: 15px; font-size: 18px; width: 100%;
     border-radius: 10px; background: #7494ec; border: none; color: #fff;
 }
 
-/* BOTTOM LOGOUT BUTTON */
 .logout-bottom {
     position: absolute;
     bottom: 20px;
@@ -198,8 +189,8 @@ nav {
     <nav><h3>Teacher Dashboard</h3></nav>
 
     <div class="content-card">
-        <h3>Attendance Tools</h3>
-        <button class="attendance-btn" onclick="markAttendance()">Authenticate (Fingerprint)</button>
+        <h3>Today's Attendance</h3>
+        <p>Loading...</p>
     </div>
 
     <button class="logout-bottom" id="teacherLogout">Logout</button>
@@ -207,12 +198,8 @@ nav {
 
 <script>
 /* ---------------- AUTH PANEL SWITCH ---------------- */
-function activateRegister(){ 
-    document.querySelector('.container').classList.add('active'); 
-}
-function activateLogin(){ 
-    document.querySelector('.container').classList.remove('active'); 
-}
+function activateRegister(){ document.querySelector('.container').classList.add('active'); }
+function activateLogin(){ document.querySelector('.container').classList.remove('active'); }
 
 const authContainer = document.getElementById('authContainer');
 const studentDashboard = document.getElementById('studentDashboard');
@@ -254,7 +241,7 @@ function login() {
     showDashboard(role);
 }
 
-/* ---------------- DASHBOARD ---------------- */
+/* ---------------- DASHBOARD DISPLAY ---------------- */
 function showDashboard(role){
     authContainer.style.display="none";
 
@@ -264,6 +251,7 @@ function showDashboard(role){
     } else {
         teacherDashboard.style.display="block";
         studentDashboard.style.display="none";
+        loadTeacherAttendance();
     }
 }
 
@@ -289,37 +277,68 @@ studentLogoutBtn.addEventListener('click', logout);
 teacherLogoutBtn.addEventListener('click', logout);
 
 /* ----------------------------------------------------
-   REAL FINGERPRINT SCANNING USING WebAuthn
+   REAL FINGERPRINT SCANNING + SAVE ATTENDANCE
 ---------------------------------------------------- */
 async function markAttendance() {
     if (!window.PublicKeyCredential) {
-        alert("Your browser does not support fingerprint scanning.");
+        alert("Your device does not support fingerprint scanning.");
         return;
     }
 
     try {
-        // Create a challenge
         const challenge = new Uint8Array(32);
-        window.crypto.getRandomValues(challenge);
+        crypto.getRandomValues(challenge);
 
-        // Request authentication via fingerprint / face unlock
         const credential = await navigator.credentials.get({
             publicKey: {
                 challenge,
                 timeout: 60000,
-                userVerification: "required"  
+                userVerification: "required" 
             }
         });
 
-        // If fingerprint is correct:
-        alert("Fingerprint Verified Successfully!\nAttendance Marked.");
-        
+        let student = localStorage.getItem("loggedUser");
+        let today = new Date().toISOString().split("T")[0];
+        let records = JSON.parse(localStorage.getItem("attendance_"+today)) || [];
+
+        if (records.includes(student)) {
+            alert("Attendance Already Marked Today!");
+            return;
+        }
+
+        records.push(student);
+        localStorage.setItem("attendance_"+today, JSON.stringify(records));
+
+        alert("Fingerprint Verified!\nAttendance Marked.");
+
     } catch (err) {
-        console.error(err);
         alert("Fingerprint Failed or Cancelled.");
     }
 }
+
+/* ----------------------------------------------------
+   TEACHER — LOAD TODAY'S ATTENDANCE
+---------------------------------------------------- */
+function loadTeacherAttendance() {
+    let today = new Date().toISOString().split("T")[0];
+    let box = document.querySelector("#teacherDashboard .content-card");
+
+    let records = JSON.parse(localStorage.getItem("attendance_"+today)) || [];
+
+    let html = `<h3>Today's Attendance (${today})</h3>`;
+
+    if (records.length === 0) {
+        html += `<p>No attendance marked today.</p>`;
+    } else {
+        html += "<ul style='padding-left:15px;'>";
+        records.forEach(s => html += `<li>${s}</li>`);
+        html += "</ul>";
+    }
+
+    box.innerHTML = html;
+}
 </script>
+
 </body>
 </html>
 
