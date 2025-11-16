@@ -64,15 +64,19 @@ body {
 .toggle-right { right: -50%; }
 .container.active .toggle-right { right: 0; }
 
-/* ------------------ DASHBOARD ------------------ */
+/* ------------------ RESPONSIVE DASHBOARD ------------------ */
 .dashboard {
     display: none;
-    width: 380px; height: 700px;
+    width: 100%;
+    max-width: 420px;
+    height: 100vh;
+    max-height: 750px;
     background: #f5f7ff;
     border-radius: 20px;
     padding: 15px;
     box-shadow: 0 0 20px rgba(0,0,0,.25);
     position: relative;
+    margin: auto;
 }
 
 nav {
@@ -91,6 +95,7 @@ nav {
     border-radius: 10px; background: #7494ec; border: none; color: #fff;
 }
 
+/* Logout button bottom */
 .logout-bottom {
     position: absolute;
     bottom: 20px;
@@ -102,6 +107,58 @@ nav {
     border: none;
     padding: 15px;
     font-size: 18px;
+}
+
+/* Mobile Adjustments */
+@media (max-width: 480px) {
+    nav h3 { font-size: 18px; }
+    .attendance-btn, .logout-bottom { font-size: 16px; padding: 12px; }
+    .content-card { padding: 15px; }
+}
+
+/* ---------------- FINGERPRINT ANIMATION ---------------- */
+#fingerprintModal {
+    position: fixed; top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.6);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.fingerprint-box {
+    background: #fff; padding: 30px;
+    border-radius: 20px; text-align: center;
+    width: 280px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.25);
+}
+
+.fingerprint-icon {
+    width: 120px; height: 120px;
+    margin: auto;
+    background: url('https://i.imgur.com/6YVJjP1.png');
+    background-size: cover;
+    animation: pulse 1.2s infinite ease-in-out;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.08); opacity: 0.7; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.scanning-text {
+    margin-top: 15px;
+    font-size: 16px;
+    color: #555;
+    animation: blink 1.2s infinite;
+}
+
+@keyframes blink {
+    0% { opacity: 1; }
+    50% { opacity: 0.4; }
+    100% { opacity: 1; }
 }
 </style>
 </head>
@@ -195,6 +252,14 @@ nav {
     <button class="logout-bottom" id="teacherLogout">Logout</button>
 </div>
 
+<!-- ------------- FINGERPRINT MODAL ------------- -->
+<div id="fingerprintModal">
+    <div class="fingerprint-box">
+        <div class="fingerprint-icon"></div>
+        <div class="scanning-text">Scanning fingerprint...</div>
+    </div>
+</div>
+
 <script>
 /* ---------------- AUTH PANEL SWITCH ---------------- */
 function activateRegister(){ document.querySelector('.container').classList.add('active'); }
@@ -203,11 +268,9 @@ function activateLogin(){ document.querySelector('.container').classList.remove(
 const authContainer = document.getElementById('authContainer');
 const studentDashboard = document.getElementById('studentDashboard');
 const teacherDashboard = document.getElementById('teacherDashboard');
-const studentLogoutBtn = document.getElementById('studentLogout');
-const teacherLogoutBtn = document.getElementById('teacherLogout');
 
 /* ----------------------------------------------------
-   REGISTER (NORMAL ONLY — NO FINGERPRINT HERE)
+   REGISTER
 ---------------------------------------------------- */
 function register() {
     let user = regUser.value.trim();
@@ -224,7 +287,7 @@ function register() {
 }
 
 /* ----------------------------------------------------
-   LOGIN (NORMAL)
+   LOGIN
 ---------------------------------------------------- */
 function login() {
     let user = loginUser.value.trim();
@@ -259,30 +322,34 @@ function showDashboard(role){
     }
 }
 
-/* ---------------- LOGOUT ---------------- */
+/* ---------------- LOGOUT (FIXED) ---------------- */
 function logout() {
     localStorage.removeItem("loggedUser");
     localStorage.removeItem("loggedRole");
 
     studentDashboard.style.display = 'none';
     teacherDashboard.style.display = 'none';
-    authContainer.style.display = 'block';
-    activateLogin();
+
+    authContainer.style.display = 'flex';
+    authContainer.classList.remove('active');
+
+    loginUser.value = "";
+    loginPass.value = "";
 }
 
-studentLogoutBtn.addEventListener('click', logout);
-teacherLogoutBtn.addEventListener('click', logout);
+document.getElementById("studentLogout").onclick = logout;
+document.getElementById("teacherLogout").onclick = logout;
 
-/* ----------------------------------------------------
-   FINGERPRINT AUTH — ONLY FOR MARKING ATTENDANCE
----------------------------------------------------- */
+/* ---------------- FINGERPRINT SCAN WITH ANIMATION ---------------- */
 async function verifyFingerprint() {
     let user = localStorage.getItem("loggedUser");
 
     if (!window.PublicKeyCredential) {
-        alert("Your mobile does not support fingerprint via browser.");
+        alert("Your mobile does not support fingerprint.");
         return;
     }
+
+    document.getElementById("fingerprintModal").style.display = "flex";
 
     try {
         const challenge = new Uint8Array(32);
@@ -296,9 +363,11 @@ async function verifyFingerprint() {
             }
         });
 
+        document.getElementById("fingerprintModal").style.display = "none";
         markAttendance(user);
     }
     catch(err){
+        document.getElementById("fingerprintModal").style.display = "none";
         alert("Fingerprint failed or cancelled!");
     }
 }
