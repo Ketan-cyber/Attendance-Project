@@ -233,7 +233,7 @@ nav {
 
     <div class="content-card">
         <h3>Mark Attendance</h3>
-        <!-- Button calls unified startFingerprint() which uses Android native when available -->
+        <!-- Fingerprint Button -->
         <button class="attendance-btn" onclick="startFingerprint()">Scan Fingerprint</button>
     </div>
 
@@ -322,7 +322,7 @@ function showDashboard(role){
     }
 }
 
-/* ---------------- LOGOUT (FIXED) ---------------- */
+/* ---------------- LOGOUT ---------------- */
 function logout() {
     localStorage.removeItem("loggedUser");
     localStorage.removeItem("loggedRole");
@@ -342,40 +342,30 @@ document.getElementById("teacherLogout").onclick = logout;
 
 /* ---------------- FINGERPRINT FLOW ---------------- */
 
-/*
- startFingerprint():
- - If running inside the Android WebView (AndroidFingerprint interface present), call native scan.
- - Otherwise try WebAuthn in supported browsers as fallback (best-effort).
- - Shows modal animation while waiting.
-*/
-
 function startFingerprint() {
-    // show UI animation
     document.getElementById("fingerprintModal").style.display = "flex";
 
+    // If Android App WebView is used
     if (window.AndroidFingerprint && typeof AndroidFingerprint.scan === "function") {
-        // call native Android biometric
-        try {
-            AndroidFingerprint.scan();
-        } catch (e) {
+        try { AndroidFingerprint.scan(); }
+        catch (e) {
             document.getElementById("fingerprintModal").style.display = "none";
-            alert("Native fingerprint call failed: " + e);
+            alert("Native fingerprint error: " + e);
         }
         return;
     }
 
-    // Browser fallback using WebAuthn (best-effort; many devices/browsers may not allow fingerprint via web)
+    // Browser fallback (WebAuthn)
     if (!window.PublicKeyCredential) {
         document.getElementById("fingerprintModal").style.display = "none";
-        alert("Fingerprint not supported in this browser. Use the Android app.");
+        alert("Fingerprint not supported on this browser.");
         return;
     }
 
-    // Simple WebAuthn get() attempt as fallback - not guaranteed on all devices/browsers
     (async () => {
         try {
             const challenge = new Uint8Array(32);
-            self.crypto.getRandomValues(challenge);
+            crypto.getRandomValues(challenge);
 
             await navigator.credentials.get({
                 publicKey: {
@@ -385,9 +375,9 @@ function startFingerprint() {
                 }
             });
 
-            // success
             document.getElementById("fingerprintModal").style.display = "none";
             fingerprintResult("success");
+
         } catch (err) {
             document.getElementById("fingerprintModal").style.display = "none";
             fingerprintResult("failed");
@@ -395,26 +385,15 @@ function startFingerprint() {
     })();
 }
 
-/*
- This function is invoked by Android native code via:
- webView.evaluateJavascript("window.fingerprintResult('success')", null)
-*/
+/* Android WebView will call this function */
 window.fingerprintResult = function(result) {
-    // hide modal in any case
     document.getElementById("fingerprintModal").style.display = "none";
 
     if (result === "success") {
-        // Mark attendance
         let user = localStorage.getItem("loggedUser");
-        if (!user) {
-            alert("No logged in user found.");
-            return;
-        }
         markAttendance(user);
-    } else if (result === "failed") {
-        alert("Fingerprint not recognized. Try again.");
     } else {
-        alert("Fingerprint cancelled or error.");
+        alert("Fingerprint not recognized!");
     }
 };
 
@@ -432,7 +411,6 @@ function markAttendance(student) {
     localStorage.setItem("attendance_"+today, JSON.stringify(records));
 
     alert("Attendance Marked Successfully!");
-    // refresh teacher view if visible
     loadTeacherAttendance();
 }
 
@@ -456,12 +434,10 @@ function loadTeacherAttendance() {
     box.innerHTML = html;
 }
 
-/* ---------- Auto-check if already logged in (keeps session on reload) ---------- */
+/* Restore session on refresh */
 (function restoreSession(){
     const logged = localStorage.getItem("loggedRole");
-    if(logged){
-        showDashboard(logged);
-    }
+    if(logged){ showDashboard(logged); }
 })();
 </script>
 </body>
