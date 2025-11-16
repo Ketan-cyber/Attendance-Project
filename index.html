@@ -1,11 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>College Attendance App</title>
 <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
-
 <style>
 /* ------------------ GLOBAL STYLES ------------------ */
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap');
@@ -35,7 +34,7 @@ body {
 .container.active .form-box.register { visibility: visible; }
 
 .input-box { margin: 20px 0; position: relative; width: 100%; }
-.input-box input {
+.input-box input, .input-box select {
     width: 100%; padding: 13px 50px 13px 20px; background: #eee;
     border-radius: 8px; border: none; font-size: 16px; font-weight: 500;
 }
@@ -111,6 +110,7 @@ nav {
 
 /* Mobile Adjustments */
 @media (max-width: 480px) {
+    .container { width: 92%; height: auto; border-radius: 18px; padding-bottom: 30px; }
     nav h3 { font-size: 18px; }
     .attendance-btn, .logout-bottom { font-size: 16px; padding: 12px; }
     .content-card { padding: 15px; }
@@ -162,7 +162,6 @@ nav {
 }
 </style>
 </head>
-
 <body>
 
 <!-- ---------------- LOGIN + REGISTER PAGE ---------------- -->
@@ -234,7 +233,8 @@ nav {
 
     <div class="content-card">
         <h3>Mark Attendance</h3>
-        <button class="attendance-btn" onclick="verifyFingerprint()">Scan Fingerprint</button>
+        <!-- Button calls unified startFingerprint() which uses Android native when available -->
+        <button class="attendance-btn" onclick="startFingerprint()">Scan Fingerprint</button>
     </div>
 
     <button class="logout-bottom" id="studentLogout">Logout</button>
@@ -340,37 +340,83 @@ function logout() {
 document.getElementById("studentLogout").onclick = logout;
 document.getElementById("teacherLogout").onclick = logout;
 
-/* ---------------- FINGERPRINT SCAN WITH ANIMATION ---------------- */
-async function verifyFingerprint() {
-    let user = localStorage.getItem("loggedUser");
+/* ---------------- FINGERPRINT FLOW ---------------- */
 
-    if (!window.PublicKeyCredential) {
-        alert("Your mobile does not support fingerprint.");
+/*
+ startFingerprint():
+ - If running inside the Android WebView (AndroidFingerprint interface present), call native scan.
+ - Otherwise try WebAuthn in supported browsers as fallback (best-effort).
+ - Shows modal animation while waiting.
+*/
+
+function startFingerprint() {
+    // show UI animation
+    document.getElementById("fingerprintModal").style.display = "flex";
+
+    if (window.AndroidFingerprint && typeof AndroidFingerprint.scan === "function") {
+        // call native Android biometric
+        try {
+            AndroidFingerprint.scan();
+        } catch (e) {
+            document.getElementById("fingerprintModal").style.display = "none";
+            alert("Native fingerprint call failed: " + e);
+        }
         return;
     }
 
-    document.getElementById("fingerprintModal").style.display = "flex";
-
-    try {
-        const challenge = new Uint8Array(32);
-        crypto.getRandomValues(challenge);
-
-        await navigator.credentials.get({
-            publicKey: {
-                challenge,
-                userVerification: "required",
-                timeout: 60000
-            }
-        });
-
+    // Browser fallback using WebAuthn (best-effort; many devices/browsers may not allow fingerprint via web)
+    if (!window.PublicKeyCredential) {
         document.getElementById("fingerprintModal").style.display = "none";
-        markAttendance(user);
+        alert("Fingerprint not supported in this browser. Use the Android app.");
+        return;
     }
-    catch(err){
-        document.getElementById("fingerprintModal").style.display = "none";
-        alert("Fingerprint failed or cancelled!");
-    }
+
+    // Simple WebAuthn get() attempt as fallback - not guaranteed on all devices/browsers
+    (async () => {
+        try {
+            const challenge = new Uint8Array(32);
+            self.crypto.getRandomValues(challenge);
+
+            await navigator.credentials.get({
+                publicKey: {
+                    challenge,
+                    userVerification: "required",
+                    timeout: 60000
+                }
+            });
+
+            // success
+            document.getElementById("fingerprintModal").style.display = "none";
+            fingerprintResult("success");
+        } catch (err) {
+            document.getElementById("fingerprintModal").style.display = "none";
+            fingerprintResult("failed");
+        }
+    })();
 }
+
+/*
+ This function is invoked by Android native code via:
+ webView.evaluateJavascript("window.fingerprintResult('success')", null)
+*/
+window.fingerprintResult = function(result) {
+    // hide modal in any case
+    document.getElementById("fingerprintModal").style.display = "none";
+
+    if (result === "success") {
+        // Mark attendance
+        let user = localStorage.getItem("loggedUser");
+        if (!user) {
+            alert("No logged in user found.");
+            return;
+        }
+        markAttendance(user);
+    } else if (result === "failed") {
+        alert("Fingerprint not recognized. Try again.");
+    } else {
+        alert("Fingerprint cancelled or error.");
+    }
+};
 
 /* ---------------- MARK ATTENDANCE ---------------- */
 function markAttendance(student) {
@@ -386,6 +432,8 @@ function markAttendance(student) {
     localStorage.setItem("attendance_"+today, JSON.stringify(records));
 
     alert("Attendance Marked Successfully!");
+    // refresh teacher view if visible
+    loadTeacherAttendance();
 }
 
 /* ---------------- TEACHER VIEW ---------------- */
@@ -407,8 +455,15 @@ function loadTeacherAttendance() {
 
     box.innerHTML = html;
 }
-</script>
 
+/* ---------- Auto-check if already logged in (keeps session on reload) ---------- */
+(function restoreSession(){
+    const logged = localStorage.getItem("loggedRole");
+    if(logged){
+        showDashboard(logged);
+    }
+})();
+</script>
 </body>
 </html>
 
